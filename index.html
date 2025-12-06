@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Intermona - Organización Médica</title>
+    <title>Intermona</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -82,12 +82,12 @@
             <i class="fa-solid fa-user-doctor text-2xl"></i>
             <h1 class="text-xl font-bold tracking-wide">Intermona</h1>
         </div>
-        <button onclick="exportData()" class="text-xs bg-pink-700 px-3 py-1 rounded hover:bg-pink-800 transition shadow-sm active:scale-95 transform" title="Copiar datos">
-            <i class="fa-solid fa-cloud-arrow-down mr-1"></i> Backup
+        <button onclick="openBackupModal()" class="text-xs bg-pink-700 px-3 py-1 rounded hover:bg-pink-800 transition shadow-sm active:scale-95 transform flex items-center gap-1" title="Gestionar Copias de Seguridad">
+            <i class="fa-solid fa-cloud-arrow-down"></i> Backup
         </button>
     </header>
 
-    <!-- Main Container (VACÍO PARA EVITAR ERRORES DE CARGA) -->
+    <!-- Main Container -->
     <main id="app-container" class="flex-1 overflow-y-auto p-4 pb-24 relative bg-gray-50 scroll-smooth"></main>
 
     <!-- Nav Bar -->
@@ -103,7 +103,7 @@
             </button>
             <button onclick="renderView('turnario')" class="nav-btn flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-pink-600 transition-colors" data-target="turnario">
                 <i class="fa-solid fa-calendar-days text-xl mb-1 transition-transform"></i>
-                <span class="text-[10px] font-semibold">Turnario</span>
+                <span class="text-[10px] font-semibold">Calendario</span>
             </button>
             <button onclick="renderView('notes')" class="nav-btn flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-pink-600 transition-colors" data-target="notes">
                 <i class="fa-solid fa-sticky-note text-xl mb-1 transition-transform"></i>
@@ -124,7 +124,6 @@
                 <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
             
-            <!-- Selección de Turno -->
             <label class="block text-sm font-bold text-gray-600 mb-2 uppercase tracking-wide text-xs">Tipo de Turno:</label>
             <div class="grid grid-cols-2 gap-2 mb-4">
                 <button onclick="setShiftType('guardia')" data-type="guardia" class="shift-type-btn p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 font-semibold text-sm transition-all duration-200 flex items-center justify-center gap-2"><i class="fa-solid fa-bell"></i> Guardia 24h</button>
@@ -135,7 +134,6 @@
                 <button onclick="setShiftType(null)" data-type="null" class="shift-type-btn p-2 rounded-lg bg-gray-50 text-gray-500 hover:bg-gray-100 border border-gray-200 font-semibold text-sm transition-all duration-200 flex items-center justify-center gap-2"><i class="fa-solid fa-trash-can"></i> Borrar</button>
             </div>
 
-            <!-- Inputs de Evento -->
             <div class="flex gap-2 mb-2">
                 <div class="w-1/3">
                     <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Hora (Opc):</label>
@@ -154,7 +152,45 @@
         </div>
     </div>
 
-    <!-- Modal Confirmación -->
+    <!-- Modal Backup / Restaurar -->
+    <div id="backup-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 transform transition-all scale-100">
+            <div class="flex justify-between items-center mb-6 border-b pb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2"><i class="fa-solid fa-floppy-disk text-pink-500"></i> Copia de Seguridad</h3>
+                    <p class="text-xs text-gray-500">Guarda tus datos o cárgalos en otro dispositivo.</p>
+                </div>
+                <button onclick="closeBackupModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-wide">1. Guardar tus datos (Exportar)</label>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="downloadBackupFile()" class="p-3 bg-pink-50 border border-pink-100 rounded-lg text-pink-700 text-sm font-bold flex flex-col items-center gap-1 hover:bg-pink-100 transition">
+                        <i class="fa-solid fa-file-arrow-down text-xl"></i>
+                        Descargar
+                    </button>
+                    <button onclick="exportDataToClipboard()" class="p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-600 text-sm font-bold flex flex-col items-center gap-1 hover:bg-gray-100 transition">
+                        <i class="fa-solid fa-copy text-xl"></i>
+                        Copiar
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-wide">2. Recuperar datos (Importar)</label>
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-pink-300 transition relative">
+                    <input type="file" id="backup-file-input" accept=".json" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="importBackupFromFile(this)">
+                    <i class="fa-solid fa-file-import text-gray-400 text-2xl mb-2"></i>
+                    <p class="text-sm text-gray-600 font-medium">Toca aquí para subir archivo</p>
+                    <p class="text-xs text-gray-400">(.json)</p>
+                </div>
+                <p class="text-[10px] text-red-400 mt-2 text-center"><i class="fa-solid fa-triangle-exclamation"></i> Importar sobrescribirá los datos actuales.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Confirmación Genérico -->
     <div id="confirm-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-xs p-6 text-center transform transition-all scale-100">
             <div class="w-12 h-12 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -194,7 +230,7 @@
             notes: [],
             folders: [],
             links: [],
-            shifts: {}, // { 'YYYY-MM-DD': { type: '...', note: '...', eventTime: 'HH:MM' } }
+            shifts: {},
             currentDate: new Date(),
             currentFolderId: 'all',
             editingNoteId: null
@@ -202,10 +238,7 @@
 
         function init() {
             loadData();
-            // --- FIX CRÍTICO: FORZAR ESTADO INICIAL ---
-            // 1. Reseteamos el estado de vista a nulo para engañar al sistema de optimización
             state.view = null; 
-            // 2. Renderizamos 'dashboard' explícitamente
             renderView('dashboard');
         }
 
@@ -218,7 +251,6 @@
                     if (!parsed.notes) parsed.notes = [];
                     if (!parsed.links) parsed.links = [];
                     if (!parsed.folders) parsed.folders = [{id: 'general', name: 'General'}];
-                    
                     state = { ...state, ...parsed, currentDate: new Date() }; 
                 } catch (e) { 
                     console.error("Error cargando datos, reiniciando...", e);
@@ -235,7 +267,6 @@
             const toSave = { ...state };
             delete toSave.currentDate; 
             delete toSave.editingNoteId; 
-            // Importante: No guardamos state.view para que no afecte futuros reinicios si decidimos usarlo
             localStorage.setItem(APP_KEY, JSON.stringify(toSave));
         }
 
@@ -251,15 +282,39 @@
             }, 3000);
         }
 
-        function exportData() {
+        // --- SISTEMA DE BACKUP ---
+        function openBackupModal() {
+            document.body.classList.add('modal-open');
+            document.getElementById('backup-modal').classList.remove('hidden');
+        }
+
+        function closeBackupModal() {
+            document.body.classList.remove('modal-open');
+            document.getElementById('backup-modal').classList.add('hidden');
+            document.getElementById('backup-file-input').value = '';
+        }
+
+        function downloadBackupFile() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
+            const downloadAnchorNode = document.createElement('a');
+            const fileName = "intermona_backup_" + new Date().toISOString().slice(0,10) + ".json";
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", fileName);
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+            showToast("Archivo descargado", "fa-download");
+        }
+
+        function exportDataToClipboard() {
             const textArea = document.createElement("textarea");
-            textArea.value = localStorage.getItem(APP_KEY);
+            textArea.value = JSON.stringify(state);
             textArea.style.position = "fixed"; 
             textArea.style.left = "-9999px";
             document.body.appendChild(textArea);
             textArea.select();
             try {
-                if(document.execCommand('copy')) showToast("Copia realizada", "fa-check-circle");
+                if(document.execCommand('copy')) showToast("Copia realizada al portapapeles", "fa-clipboard-check");
                 else showToast("Error al copiar", "fa-times");
             } catch (err) {
                 showToast("Error al copiar", "fa-times");
@@ -267,21 +322,51 @@
             document.body.removeChild(textArea);
         }
 
-        // --- SISTEMA DE NAVEGACIÓN FLUIDA ---
+        // Importación CORREGIDA (Sin confirm() nativo)
+        function importBackupFromFile(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data && (data.todos || data.notes || data.shifts)) {
+                        // Usar Modal Genérico
+                        showConfirmModal(
+                            "Restaurar Copia",
+                            "Se reemplazarán todos los datos actuales por los del archivo. ¿Continuar?",
+                            "Restaurar",
+                            function() {
+                                state = { ...state, ...data, currentDate: new Date() };
+                                saveData();
+                                closeConfirmModal();
+                                closeBackupModal();
+                                state.view = null;
+                                renderView('dashboard');
+                                showToast("Datos restaurados", "fa-check-double");
+                            }
+                        );
+                    } else {
+                        showToast("Archivo inválido", "fa-triangle-exclamation");
+                    }
+                } catch(err) {
+                    console.error(err);
+                    showToast("Error leyendo archivo", "fa-bug");
+                }
+                input.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        // --- SISTEMA DE NAVEGACIÓN ---
         function renderView(viewName) {
             const container = document.getElementById('app-container');
-            
-            // --- FIX DE LA PANTALLA EN BLANCO ---
-            // Solo evitamos el render si el estado es IGUAL y el contenedor TIENE NODOS REALES (elementos)
-            // childElementCount es más seguro que hasChildNodes porque ignora espacios en blanco
-            if (state.view === viewName && container.childElementCount > 0) {
-                return; 
-            }
+            if (state.view === viewName && container.childElementCount > 0) return; 
 
             state.view = viewName;
             state.editingNoteId = null; 
             
-            // Actualizar Nav Bar (Visual)
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 const icon = btn.querySelector('i');
                 if(btn.dataset.target === viewName) {
@@ -307,7 +392,7 @@
                 }
             } catch (e) {
                 console.error("Error renderizando vista:", e);
-                contentHTML = `<div class="p-8 text-center text-red-400"><i class="fa-solid fa-bug text-4xl mb-2"></i><br>Algo salió mal.<br><button onclick="localStorage.clear(); location.reload()" class="underline mt-2">Reiniciar App</button></div>`;
+                contentHTML = `<div class="p-8 text-center text-red-400">Algo salió mal.</div>`;
             }
 
             const wrapper = document.createElement('div');
@@ -321,7 +406,6 @@
                 const imgInput = document.getElementById('new-note-image');
                 if(imgInput) imgInput.addEventListener('change', function() { previewImage(this); });
             }
-            
             saveData();
         }
 
@@ -347,7 +431,6 @@
                 }
             }
 
-            // Lógica Próximo Evento
             let nextEvent = null;
             const sortedDates = Object.keys(state.shifts).sort();
             for (const d of sortedDates) {
@@ -383,7 +466,6 @@
 
             const pendingTodos = (state.todos || []).filter(t => !t.done);
             
-            // Saludos
             const lovePhrases = [
                 "Eres la más monita 🐵🩷", "Te amo popii", "Serás la mejor intermona 🩷",
                 "Pop pop pop pop", "Eres el amor de mi vida", "Ahora mismo estoy pensando en ti 💘",
@@ -395,7 +477,6 @@
             const phraseIndex = (Math.floor(hour / 2) + today.getDate()) % lovePhrases.length;
             let greeting = lovePhrases[phraseIndex];
 
-            // Configurar Card Turno
             let shiftCardClass = "bg-white border-gray-200 text-gray-600";
             let shiftText = "No hay turnos próximos";
             let shiftIcon = "fa-calendar-check"; 
@@ -470,7 +551,7 @@
             `;
         }
 
-        // --- CALENDAR WRAPPERS ---
+        // --- CALENDAR ---
         function getTurnarioHTML() {
              const year = state.currentDate.getFullYear(); const month = state.currentDate.getMonth(); const firstDay = new Date(year, month, 1); const lastDay = new Date(year, month + 1, 0); const daysInMonth = lastDay.getDate(); const startingDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1; const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
             let html = `<div><div class="flex justify-between items-center mb-6 bg-white p-4 rounded-2xl shadow-sm border border-gray-100"><button onclick="changeMonth(-1)" class="w-8 h-8 flex items-center justify-center text-pink-600 active:bg-gray-100 rounded-full"><i class="fa-solid fa-chevron-left"></i></button><h2 class="text-lg font-bold text-gray-800 capitalize">${monthNames[month]} <span class="text-pink-600">${year}</span></h2><button onclick="changeMonth(1)" class="w-8 h-8 flex items-center justify-center text-pink-600 active:bg-gray-100 rounded-full"><i class="fa-solid fa-chevron-right"></i></button></div><div class="grid grid-cols-7 gap-2 mb-2 text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest"><div>L</div><div>M</div><div>X</div><div>J</div><div>V</div><div>S</div><div>D</div></div><div id="calendar-grid" class="grid grid-cols-7 gap-1.5 sm:gap-2">`;
@@ -493,7 +574,6 @@
             const todayKey = new Date().toISOString().split('T')[0]; 
             const isToday = dateKey === todayKey ? "ring-2 ring-pink-500 ring-offset-1 z-10" : ""; 
             
-            // Indicador de Nota o Evento
             let noteIndicator = "";
             if (shift) {
                 if (shift.eventTime) {
@@ -520,7 +600,7 @@
             
             document.getElementById('modal-date-title').innerText = dateTitle.charAt(0).toUpperCase() + dateTitle.slice(1); 
             document.getElementById('modal-note-input').value = shift ? (shift.note || '') : ''; 
-            document.getElementById('modal-event-time').value = shift ? (shift.eventTime || '') : ''; // Cargar hora
+            document.getElementById('modal-event-time').value = shift ? (shift.eventTime || '') : ''; 
             
             tempShiftType = shift ? shift.type : null; 
             updateShiftTypeUI(); 
@@ -541,7 +621,7 @@
         
         function saveShift() { 
             const note = document.getElementById('modal-note-input').value.trim(); 
-            const eventTime = document.getElementById('modal-event-time').value; // Leer hora
+            const eventTime = document.getElementById('modal-event-time').value; 
             
             if (!tempShiftType && !note && !eventTime) {
                 delete state.shifts[selectedDateKey]; 
@@ -549,7 +629,7 @@
                 state.shifts[selectedDateKey] = { 
                     type: tempShiftType, 
                     note: note,
-                    eventTime: eventTime // Guardar hora
+                    eventTime: eventTime 
                 }; 
             } 
             
@@ -560,14 +640,13 @@
                 const dayEl = document.getElementById(`day-${selectedDateKey}`); 
                 if(dayEl) { const [y, m, d] = selectedDateKey.split('-'); dayEl.outerHTML = createDayCellHTML(selectedDateKey, parseInt(d)); } 
             } else if (state.view === 'dashboard') { 
-                renderView('dashboard'); // Recargar para actualizar recordatorio
+                renderView('dashboard'); 
             } 
             showToast("Guardado", "fa-check"); 
         }
 
-        // --- NOTES SYSTEM (FLUIDO) ---
+        // --- NOTES SYSTEM ---
         function getNotesHTML() {
-            // Estructura Base Estática
             const foldersHTML = `
                 <div class="flex overflow-x-auto gap-2 pb-4 mb-2 no-scrollbar" id="folders-container">
                     ${generateFoldersHTML()}
@@ -657,10 +736,8 @@
             `;
         }
 
-        // Acciones Notas - SIN Recargar Vista
         function changeFolder(folderId) {
             state.currentFolderId = folderId;
-            // 1. Actualizar botones visualmente (DOM directo)
             document.querySelectorAll('.folder-btn').forEach(btn => {
                 if(btn.dataset.id === folderId) {
                     btn.className = "folder-btn whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all bg-pink-600 text-white shadow-md";
@@ -669,7 +746,6 @@
                     btn.className = "folder-btn whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all bg-white text-gray-500 border border-gray-200";
                 }
             });
-            // 2. Actualizar Lista
             const listContainer = document.getElementById('notes-list');
             listContainer.innerHTML = generateNotesListHTML();
         }
@@ -679,7 +755,6 @@
             const note = state.notes.find(n => n.id === id);
             if(!note) return;
 
-            // Actualizar Editor UI (DOM directo)
             document.getElementById('editor-title').innerText = "Editando Nota";
             document.getElementById('editor-save-btn').innerText = "Actualizar";
             document.getElementById('editor-cancel-btn').classList.remove('hidden');
@@ -724,39 +799,31 @@
             }
 
             if (state.editingNoteId) {
-                // ACTUALIZAR (DOM Quirúrgico)
                 const noteIndex = state.notes.findIndex(n => n.id === state.editingNoteId);
                 if (noteIndex > -1) {
                     state.notes[noteIndex].text = text;
                     state.notes[noteIndex].image = imageData;
-                    
-                    // Reemplazar solo ese elemento
                     const oldEl = document.getElementById(`note-${state.editingNoteId}`);
                     if(oldEl) {
                         const tempContainer = document.createElement('div');
                         tempContainer.innerHTML = createNoteHTML(state.notes[noteIndex]);
                         const newEl = tempContainer.firstElementChild;
-                        newEl.classList.remove('item-enter'); // Evitar slideIn al editar
-                        newEl.classList.add('item-update'); // Animación pulso
+                        newEl.classList.remove('item-enter');
+                        newEl.classList.add('item-update'); 
                         oldEl.replaceWith(newEl);
                     }
                     showToast("Actualizada", "fa-check");
                 }
                 cancelEdit();
             } else {
-                // CREAR (DOM Quirúrgico)
                 const targetFolder = state.currentFolderId === 'all' ? 'general' : state.currentFolderId;
                 const newNote = { id: Date.now(), text, image: imageData, folderId: targetFolder };
                 state.notes.unshift(newNote);
-                
-                // Si estamos viendo la carpeta correcta, inyectar
                 if(state.currentFolderId === 'all' || state.currentFolderId === targetFolder) {
                     const list = document.getElementById('notes-list');
-                    // Limpiar mensaje "vacío" si existe
                     if(list.innerText.includes("Carpeta vacía")) list.innerHTML = '';
                     list.insertAdjacentHTML('afterbegin', createNoteHTML(newNote));
                 }
-                
                 textInput.value = '';
                 clearImageInput();
                 showToast("Guardada", "fa-check");
@@ -777,9 +844,7 @@
             showToast("Eliminada", "fa-trash");
         }
         
-        // --- RESTO DE FUNCIONALIDADES (TODO, LINKS, ETC) ---
-        // (Copias de funciones anteriores sin cambios estructurales grandes)
-        
+        // Todo
         function getTodoHTML() {
             const todosHTML = state.todos.length === 0 
                 ? `<div id="empty-todo" class="text-center py-10 opacity-60"><i class="fa-solid fa-clipboard-check text-4xl text-gray-300 mb-2"></i><p class="text-sm">Sin tareas pendientes</p></div>`
@@ -927,11 +992,43 @@
         function previewImage(input) { if (input.files && input.files[0]) { const reader = new FileReader(); reader.onload = function(e) { const img = document.getElementById('image-preview'); if(img) { img.src = e.target.result; document.getElementById('image-preview-container').classList.remove('hidden'); } }; reader.readAsDataURL(input.files[0]); } }
         function clearImageInput() { document.getElementById('new-note-image').value = ''; document.getElementById('image-preview-container').classList.add('hidden'); document.getElementById('image-preview').src = ''; }
 
-        // Modal Confirm
-        let itemToDelete = null;
-        function confirmDelete(type, id) { itemToDelete = { type, id }; const modal = document.getElementById('confirm-modal'); const msg = document.getElementById('confirm-message'); if(type === 'todo') msg.innerText = "¿Completar borrado?"; document.body.classList.add('modal-open'); modal.classList.remove('hidden'); document.getElementById('confirm-btn-action').onclick = executeDelete; }
-        function closeConfirmModal() { document.body.classList.remove('modal-open'); document.getElementById('confirm-modal').classList.add('hidden'); itemToDelete = null; }
-        function executeDelete() { if (!itemToDelete) return; if (itemToDelete.type === 'todo') deleteTodo(itemToDelete.id); else if (itemToDelete.type === 'note') deleteNote(itemToDelete.id); else if (itemToDelete.type === 'link') deleteLink(itemToDelete.id); closeConfirmModal(); }
+        // --- SISTEMA DE CONFIRMACIÓN MODAL (GENÉRICO) ---
+        function showConfirmModal(title, message, actionBtnText, onConfirm) {
+            const modal = document.getElementById('confirm-modal');
+            const titleEl = modal.querySelector('h3');
+            const msgEl = document.getElementById('confirm-message');
+            const btn = document.getElementById('confirm-btn-action');
+
+            titleEl.innerText = title;
+            msgEl.innerText = message;
+            btn.innerText = actionBtnText;
+            
+            // Importante: Asignar el nuevo handler
+            btn.onclick = onConfirm;
+
+            document.body.classList.add('modal-open');
+            modal.classList.remove('hidden');
+        }
+
+        function closeConfirmModal() {
+            document.body.classList.remove('modal-open');
+            document.getElementById('confirm-modal').classList.add('hidden');
+        }
+
+        // Wrapper para compatibilidad con llamadas anteriores
+        function confirmDelete(type, id) {
+            let msg = "Esta acción no se puede deshacer.";
+            if(type === 'todo') msg = "¿Borrar esta tarea?";
+            if(type === 'note') msg = "¿Borrar esta nota?";
+            if(type === 'link') msg = "¿Borrar este enlace?";
+
+            showConfirmModal("¿Estás seguro?", msg, "Eliminar", function() {
+                if (type === 'todo') deleteTodo(id);
+                else if (type === 'note') deleteNote(id);
+                else if (type === 'link') deleteLink(id);
+                closeConfirmModal();
+            });
+        }
 
         init();
     </script>
