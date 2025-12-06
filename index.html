@@ -30,9 +30,9 @@
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* Animaciones */
-        .view-transition {
-            animation: fadeIn 0.3s ease-out;
+        /* Transiciones de Vista (Módulos) */
+        .fade-enter {
+            animation: fadeIn 0.2s ease-out forwards;
         }
         
         @keyframes fadeIn {
@@ -40,6 +40,7 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
+        /* Animaciones de Items (Notas/Tareas) */
         @keyframes slideIn {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -52,11 +53,21 @@
         .item-leave {
             transition: all 0.3s ease-in;
             opacity: 0;
-            transform: translateX(20px);
+            transform: scale(0.95);
             height: 0 !important;
             margin: 0 !important;
             padding: 0 !important;
             overflow: hidden;
+        }
+
+        .item-update {
+            animation: pulse-green 0.5s ease-in-out;
+        }
+
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(236, 72, 153, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0); }
         }
 
         .calendar-day { aspect-ratio: 1/1; }
@@ -79,7 +90,7 @@
 
     <!-- Main Container -->
     <main id="app-container" class="flex-1 overflow-y-auto p-4 pb-24 relative bg-gray-50 scroll-smooth">
-        <!-- Renderizado dinámico -->
+        <!-- El contenido se inyecta aquí -->
     </main>
 
     <!-- Nav Bar -->
@@ -184,35 +195,22 @@
 
         function init() {
             loadData();
+            // Cargar vista inicial
             renderView(state.view);
         }
 
         function loadData() {
             const saved = localStorage.getItem(APP_KEY);
-            const savedOld = localStorage.getItem('intermona_data_v1');
-            
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
                     state = { ...state, ...parsed, currentDate: new Date() }; 
                 } catch (e) { console.error("Error data", e); }
-            } else if (savedOld) {
-                try {
-                    const parsedOld = JSON.parse(savedOld);
-                    state = { ...state, ...parsedOld, currentDate: new Date() };
-                    state.folders = [{id: 'general', name: 'General'}];
-                    state.notes = state.notes.map(n => ({...n, folderId: 'general'}));
-                    saveData();
-                    showToast("Datos actualizados a v2", "fa-circle-up");
-                } catch(e) {}
             } else {
                 state.folders = [{id: 'general', name: 'General'}];
                 state.todos = [{ id: 1, text: "Bienvenido a Intermona", done: false }];
             }
-
-            if (!state.folders || state.folders.length === 0) {
-                state.folders = [{id: 'general', name: 'General'}];
-            }
+            if (!state.folders || state.folders.length === 0) state.folders = [{id: 'general', name: 'General'}];
         }
 
         function saveData() {
@@ -250,15 +248,17 @@
             document.body.removeChild(textArea);
         }
 
-        // --- CORE RENDER SYSTEM ---
+        // --- SISTEMA DE NAVEGACIÓN FLUIDA ---
         function renderView(viewName) {
-            // Solo reseteamos la edición si cambiamos de sección, no si recargamos la misma (ej. al editar)
-            if (viewName !== 'notes') {
-                state.editingNoteId = null;
+            // Si ya estamos en la vista, no hacer nada (excepto si es necesaria forzar)
+            if (state.view === viewName && document.getElementById('app-container').hasChildNodes()) {
+                return; 
             }
-            
+
             state.view = viewName;
+            state.editingNoteId = null; // Reset edición al cambiar módulo completo
             
+            // Actualizar Nav Bar (Visual)
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 const icon = btn.querySelector('i');
                 if(btn.dataset.target === viewName) {
@@ -273,22 +273,27 @@
             });
 
             const container = document.getElementById('app-container');
-            container.innerHTML = ''; 
-            container.scrollTop = 0;
-
-            const wrapper = document.createElement('div');
-            wrapper.className = "view-transition max-w-lg mx-auto";
             
+            // Generar nuevo contenido
+            let contentHTML = '';
             switch(viewName) {
-                case 'dashboard': wrapper.innerHTML = getDashboardHTML(); break;
-                case 'turnario': wrapper.innerHTML = getTurnarioHTML(); break;
-                case 'todo': wrapper.innerHTML = getTodoHTML(); break;
-                case 'notes': wrapper.innerHTML = getNotesHTML(); break;
-                case 'links': wrapper.innerHTML = getLinksHTML(); break;
+                case 'dashboard': contentHTML = getDashboardHTML(); break;
+                case 'turnario': contentHTML = getTurnarioHTML(); break;
+                case 'todo': contentHTML = getTodoHTML(); break;
+                case 'notes': contentHTML = getNotesHTML(); break;
+                case 'links': contentHTML = getLinksHTML(); break;
             }
+
+            // Inyectar con Wrapper para animación
+            const wrapper = document.createElement('div');
+            wrapper.className = "fade-enter max-w-lg mx-auto";
+            wrapper.innerHTML = contentHTML;
+
+            // Reemplazo limpio (minimiza parpadeo)
+            container.replaceChildren(wrapper);
+            container.scrollTop = 0;
             
-            container.appendChild(wrapper);
-            
+            // Hooks específicos post-render
             if (viewName === 'notes') {
                 const imgInput = document.getElementById('new-note-image');
                 if(imgInput) imgInput.addEventListener('change', function() { previewImage(this); });
@@ -395,24 +400,233 @@
             `;
         }
 
-        // --- TODO LIST ---
+        // --- NOTES SYSTEM (FLUIDO) ---
+        function getNotesHTML() {
+            // Estructura Base Estática
+            const foldersHTML = `
+                <div class="flex overflow-x-auto gap-2 pb-4 mb-2 no-scrollbar" id="folders-container">
+                    ${generateFoldersHTML()}
+                </div>
+            `;
+
+            return `
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-2">Notas</h2>
+                    ${foldersHTML}
+                    
+                    <div id="note-editor" class="bg-white p-4 rounded-2xl shadow-sm mb-6 border border-gray-100 transition-all">
+                        <div class="flex justify-between items-center mb-2">
+                            <span id="editor-title" class="text-xs font-bold text-gray-400 uppercase">Nueva Nota</span>
+                            <button id="editor-cancel-btn" onclick="cancelEdit()" class="text-gray-400 hover:text-gray-600 text-sm mr-3 hidden">Cancelar</button>
+                        </div>
+                        <textarea id="new-note-text" class="w-full p-2 border-b border-gray-100 focus:outline-none focus:border-pink-300 resize-none mb-2 font-handwriting text-lg bg-transparent" rows="3" placeholder="Nota nueva..."></textarea>
+                        
+                        <div id="image-preview-container" class="hidden mb-3 relative group w-fit">
+                            <img id="image-preview" src="" class="h-24 rounded-lg border border-gray-200 object-cover shadow-sm">
+                            <button onclick="clearImageInput()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center transform scale-90"><i class="fa-solid fa-xmark text-xs"></i></button>
+                        </div>
+
+                        <div class="flex justify-between items-center mt-3">
+                            <label class="cursor-pointer text-gray-500 hover:text-pink-600 flex items-center gap-2 text-xs font-bold">
+                                <i class="fa-solid fa-camera"></i> Foto
+                                <input type="file" id="new-note-image" accept="image/*" class="hidden">
+                            </label>
+                            <button id="editor-save-btn" onclick="saveNote()" class="bg-pink-600 text-white px-5 py-1.5 rounded-lg text-sm font-bold hover:bg-pink-700 transform active:scale-95 transition-transform shadow-md">Guardar</button>
+                        </div>
+                    </div>
+                    <div id="notes-list" class="grid grid-cols-1 gap-4 pb-20 masonry-layout">
+                        ${generateNotesListHTML()}
+                    </div>
+                </div>
+            `;
+        }
+
+        function generateFoldersHTML() {
+             return `
+                <button onclick="changeFolder('all')" class="folder-btn whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all ${state.currentFolderId === 'all' ? 'bg-gray-800 text-white shadow-md' : 'bg-white text-gray-500 border border-gray-200'}" data-id="all">
+                    Todas
+                </button>
+                ${state.folders.map(f => `
+                    <button onclick="changeFolder('${f.id}')" class="folder-btn whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all ${state.currentFolderId === f.id ? 'bg-pink-600 text-white shadow-md' : 'bg-white text-gray-500 border border-gray-200'}" data-id="${f.id}">
+                        ${f.name}
+                    </button>
+                `).join('')}
+                <button onclick="openFolderModal()" class="whitespace-nowrap px-3 py-2 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">
+                    <i class="fa-solid fa-plus"></i>
+                </button>
+            `;
+        }
+
+        function generateNotesListHTML() {
+            let filteredNotes = state.notes;
+            if (state.currentFolderId !== 'all') {
+                filteredNotes = state.notes.filter(n => n.folderId === state.currentFolderId);
+            }
+            if (filteredNotes.length === 0) return `<div class="text-center text-gray-400 text-sm mt-10 italic flex flex-col items-center"><i class="fa-regular fa-folder-open text-3xl mb-2 opacity-50"></i>Carpeta vacía</div>`;
+            return filteredNotes.map(n => createNoteHTML(n)).join('');
+        }
+
+        function createNoteHTML(note) {
+            const img = note.image ? `<img src="${note.image}" class="w-full h-auto rounded-lg mb-3 border border-black/5">` : '';
+            const folderName = state.folders.find(f => f.id === note.folderId)?.name || 'General';
+            
+            return `
+                <div id="note-${note.id}" class="bg-yellow-50 p-5 rounded-xl shadow-sm border border-yellow-200/60 relative group item-enter hover:shadow-md transition-shadow">
+                    ${img}
+                    <p class="text-gray-800 whitespace-pre-wrap font-handwriting text-lg leading-relaxed">${note.text}</p>
+                    <div class="flex justify-between items-center mt-4 pt-2 border-t border-yellow-200/50">
+                        <span class="text-[10px] text-gray-400 bg-white/50 px-2 py-0.5 rounded-full">${folderName}</span>
+                        <div class="flex gap-2">
+                             <button onclick="copyNote(${note.id})" class="text-gray-400 hover:text-blue-500 bg-white rounded-full w-7 h-7 shadow-sm flex items-center justify-center transition-colors">
+                                <i class="fa-solid fa-copy text-xs"></i>
+                            </button>
+                             <button onclick="startEditNote(${note.id})" class="text-gray-400 hover:text-pink-500 bg-white rounded-full w-7 h-7 shadow-sm flex items-center justify-center transition-colors">
+                                <i class="fa-solid fa-pencil text-xs"></i>
+                            </button>
+                            <button onclick="confirmDelete('note', ${note.id})" class="text-red-300 hover:text-red-500 bg-white rounded-full w-7 h-7 shadow-sm flex items-center justify-center transition-colors">
+                                <i class="fa-solid fa-trash-can text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Acciones Notas - SIN Recargar Vista
+        function changeFolder(folderId) {
+            state.currentFolderId = folderId;
+            // 1. Actualizar botones visualmente (DOM directo)
+            document.querySelectorAll('.folder-btn').forEach(btn => {
+                if(btn.dataset.id === folderId) {
+                    btn.className = "folder-btn whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all bg-pink-600 text-white shadow-md";
+                    if(folderId === 'all') btn.className = "folder-btn whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all bg-gray-800 text-white shadow-md";
+                } else {
+                    btn.className = "folder-btn whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all bg-white text-gray-500 border border-gray-200";
+                }
+            });
+            // 2. Actualizar Lista
+            const listContainer = document.getElementById('notes-list');
+            listContainer.innerHTML = generateNotesListHTML();
+        }
+
+        function startEditNote(id) {
+            state.editingNoteId = id;
+            const note = state.notes.find(n => n.id === id);
+            if(!note) return;
+
+            // Actualizar Editor UI (DOM directo)
+            document.getElementById('editor-title').innerText = "Editando Nota";
+            document.getElementById('editor-save-btn').innerText = "Actualizar";
+            document.getElementById('editor-cancel-btn').classList.remove('hidden');
+            
+            document.getElementById('new-note-text').value = note.text;
+            if(note.image) {
+                document.getElementById('image-preview').src = note.image;
+                document.getElementById('image-preview-container').classList.remove('hidden');
+            } else {
+                clearImageInput();
+            }
+
+            document.getElementById('note-editor').classList.add('ring-2', 'ring-pink-100');
+            document.getElementById('note-editor').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function cancelEdit() {
+            state.editingNoteId = null;
+            document.getElementById('editor-title').innerText = "Nueva Nota";
+            document.getElementById('editor-save-btn').innerText = "Guardar";
+            document.getElementById('editor-cancel-btn').classList.add('hidden');
+            document.getElementById('new-note-text').value = '';
+            clearImageInput();
+            document.getElementById('note-editor').classList.remove('ring-2', 'ring-pink-100');
+        }
+
+        async function saveNote() {
+            const textInput = document.getElementById('new-note-text');
+            const fileInput = document.getElementById('new-note-image');
+            const imgPreview = document.getElementById('image-preview');
+            const text = textInput.value.trim();
+            const file = fileInput.files[0];
+
+            if (!text && !file && imgPreview.classList.contains('hidden')) return showToast("Nota vacía", "fa-pen");
+
+            let imageData = null;
+            if (file) {
+                try { imageData = await processImage(file); } 
+                catch (e) { return showToast("Error imagen", "fa-times"); }
+            } else if (!document.getElementById('image-preview-container').classList.contains('hidden')) {
+                imageData = imgPreview.src;
+            }
+
+            if (state.editingNoteId) {
+                // ACTUALIZAR (DOM Quirúrgico)
+                const noteIndex = state.notes.findIndex(n => n.id === state.editingNoteId);
+                if (noteIndex > -1) {
+                    state.notes[noteIndex].text = text;
+                    state.notes[noteIndex].image = imageData;
+                    
+                    // Reemplazar solo ese elemento
+                    const oldEl = document.getElementById(`note-${state.editingNoteId}`);
+                    if(oldEl) {
+                        const tempContainer = document.createElement('div');
+                        tempContainer.innerHTML = createNoteHTML(state.notes[noteIndex]);
+                        const newEl = tempContainer.firstElementChild;
+                        newEl.classList.remove('item-enter'); // Evitar slideIn al editar
+                        newEl.classList.add('item-update'); // Animación pulso
+                        oldEl.replaceWith(newEl);
+                    }
+                    showToast("Actualizada", "fa-check");
+                }
+                cancelEdit();
+            } else {
+                // CREAR (DOM Quirúrgico)
+                const targetFolder = state.currentFolderId === 'all' ? 'general' : state.currentFolderId;
+                const newNote = { id: Date.now(), text, image: imageData, folderId: targetFolder };
+                state.notes.unshift(newNote);
+                
+                // Si estamos viendo la carpeta correcta, inyectar
+                if(state.currentFolderId === 'all' || state.currentFolderId === targetFolder) {
+                    const list = document.getElementById('notes-list');
+                    // Limpiar mensaje "vacío" si existe
+                    if(list.innerText.includes("Carpeta vacía")) list.innerHTML = '';
+                    list.insertAdjacentHTML('afterbegin', createNoteHTML(newNote));
+                }
+                
+                textInput.value = '';
+                clearImageInput();
+                showToast("Guardada", "fa-check");
+            }
+            saveData();
+        }
+
+        function deleteNote(id) {
+            state.notes = state.notes.filter(n => n.id !== id);
+            if (state.editingNoteId === id) cancelEdit();
+            saveData();
+            
+            const el = document.getElementById(`note-${id}`);
+            if(el) { 
+                el.classList.add('item-leave'); 
+                setTimeout(() => el.remove(), 300); 
+            }
+            showToast("Eliminada", "fa-trash");
+        }
+        
+        // --- RESTO DE FUNCIONALIDADES (TODO, LINKS, ETC) ---
+        // (Copias de funciones anteriores sin cambios estructurales grandes)
+        
         function getTodoHTML() {
             const todosHTML = state.todos.length === 0 
-                ? getEmptyTodoHTML() 
+                ? `<div id="empty-todo" class="text-center py-10 opacity-60"><i class="fa-solid fa-clipboard-check text-4xl text-gray-300 mb-2"></i><p class="text-sm">Sin tareas pendientes</p></div>`
                 : state.todos.sort((a,b) => a.done - b.done).map(t => createTodoItemHTML(t)).join('');
 
             return `
                 <div>
                     <h2 class="text-2xl font-bold text-gray-800 mb-1">Pendientes</h2>
                     <p class="text-sm text-gray-500 mb-6">Organiza tus tareas médicas.</p>
-                    
                     <div class="flex gap-2 mb-6 shadow-sm rounded-xl">
-                        <input type="text" id="new-todo" placeholder="Nueva tarea..." 
-                            class="flex-1 p-4 rounded-l-xl border border-r-0 border-gray-200 focus:outline-none focus:ring-1 focus:ring-pink-500"
-                            onkeypress="if(event.key === 'Enter') addTodo()">
-                        <button onclick="addTodo()" class="bg-pink-600 text-white px-5 rounded-r-xl hover:bg-pink-700 transition font-bold">
-                            <i class="fa-solid fa-plus"></i>
-                        </button>
+                        <input type="text" id="new-todo" placeholder="Nueva tarea..." class="flex-1 p-4 rounded-l-xl border border-r-0 border-gray-200 focus:outline-none focus:ring-1 focus:ring-pink-500" onkeypress="if(event.key === 'Enter') addTodo()">
+                        <button onclick="addTodo()" class="bg-pink-600 text-white px-5 rounded-r-xl hover:bg-pink-700 transition font-bold"><i class="fa-solid fa-plus"></i></button>
                     </div>
                     <ul id="todo-list" class="space-y-3 pb-20">${todosHTML}</ul>
                 </div>
@@ -424,21 +638,7 @@
             const text = todo.done ? 'text-gray-400 line-through' : 'text-gray-700 font-medium';
             const border = todo.done ? 'border-gray-100' : 'border-gray-200';
             const icon = todo.done ? 'fa-regular fa-square-check text-gray-400' : 'fa-regular fa-square text-pink-500 hover:text-pink-600';
-            
-            return `
-                <li id="todo-${todo.id}" class="flex items-center gap-3 p-4 rounded-xl shadow-sm border ${border} ${bg} transition-all group item-enter">
-                    <button onclick="toggleTodo(${todo.id})" class="text-xl focus:outline-none transform active:scale-90 transition-transform">
-                        <i id="icon-${todo.id}" class="${icon}"></i>
-                    </button>
-                    <span id="text-${todo.id}" class="flex-1 ${text} cursor-pointer select-none" onclick="toggleTodo(${todo.id})">${todo.text}</span>
-                    <button onclick="confirmDelete('todo', ${todo.id})" class="text-gray-300 hover:text-red-500 px-2 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
-                </li>
-            `;
-        }
-        function getEmptyTodoHTML() {
-            return `<div id="empty-todo" class="text-center py-10 opacity-60"><i class="fa-solid fa-clipboard-check text-4xl text-gray-300 mb-2"></i><p class="text-sm">Sin tareas pendientes</p></div>`;
+            return `<li id="todo-${todo.id}" class="flex items-center gap-3 p-4 rounded-xl shadow-sm border ${border} ${bg} transition-all group item-enter"><button onclick="toggleTodo(${todo.id})" class="text-xl focus:outline-none transform active:scale-90 transition-transform"><i id="icon-${todo.id}" class="${icon}"></i></button><span id="text-${todo.id}" class="flex-1 ${text} cursor-pointer select-none" onclick="toggleTodo(${todo.id})">${todo.text}</span><button onclick="confirmDelete('todo', ${todo.id})" class="text-gray-300 hover:text-red-500 px-2 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"><i class="fa-solid fa-trash-can"></i></button></li>`;
         }
 
         function addTodo() {
@@ -454,6 +654,7 @@
             list.insertAdjacentHTML('afterbegin', createTodoItemHTML(newTodo));
             input.value = '';
         }
+
         function toggleTodo(id) {
             const todo = state.todos.find(t => t.id === id);
             if (!todo) return;
@@ -480,384 +681,14 @@
             showToast("Tarea eliminada", "fa-trash");
         }
 
-        // --- CALENDAR ---
-        function getTurnarioHTML() {
-            const year = state.currentDate.getFullYear();
-            const month = state.currentDate.getMonth();
-            const firstDay = new Date(year, month, 1);
-            const lastDay = new Date(year, month + 1, 0);
-            const daysInMonth = lastDay.getDate();
-            const startingDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
-            const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-
-            let html = `
-                <div>
-                    <div class="flex justify-between items-center mb-6 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                        <button onclick="changeMonth(-1)" class="w-8 h-8 flex items-center justify-center text-pink-600 active:bg-gray-100 rounded-full"><i class="fa-solid fa-chevron-left"></i></button>
-                        <h2 class="text-lg font-bold text-gray-800 capitalize">${monthNames[month]} <span class="text-pink-600">${year}</span></h2>
-                        <button onclick="changeMonth(1)" class="w-8 h-8 flex items-center justify-center text-pink-600 active:bg-gray-100 rounded-full"><i class="fa-solid fa-chevron-right"></i></button>
-                    </div>
-                    <div class="grid grid-cols-7 gap-2 mb-2 text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                        <div>L</div><div>M</div><div>X</div><div>J</div><div>V</div><div>S</div><div>D</div>
-                    </div>
-                    <div id="calendar-grid" class="grid grid-cols-7 gap-1.5 sm:gap-2">
-            `;
-            for (let i = 0; i < startingDay; i++) html += `<div></div>`;
-            for (let day = 1; day <= daysInMonth; day++) {
-                const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                html += createDayCellHTML(dateKey, day);
-            }
-            html += `</div>
-                <div class="mt-6 p-4 bg-white rounded-2xl shadow-sm border border-gray-100 text-xs text-gray-500 grid grid-cols-3 gap-2">
-                    <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-500"></span> Guardia</span>
-                    <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-blue-500"></span> Día</span>
-                    <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-indigo-600"></span> Noche</span>
-                    <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-orange-300"></span> Post</span>
-                    <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-green-400"></span> Libre</span>
-                </div>
-            </div>`;
-            return html;
-        }
-
-        function createDayCellHTML(dateKey, day) {
-            const shift = state.shifts[dateKey];
-            let bgClass = "bg-white border-gray-100 text-gray-600 hover:border-pink-200";
-            let icon = "";
-            if (shift) {
-                if (shift.type === 'guardia') { bgClass = "bg-red-500 border-red-600 text-white shadow-md shadow-red-200"; icon = "🚨"; }
-                else if (shift.type === 'dia') { bgClass = "bg-blue-500 border-blue-600 text-white shadow-md shadow-blue-200"; icon = "☀️"; }
-                else if (shift.type === 'noche') { bgClass = "bg-indigo-600 border-indigo-700 text-white shadow-md shadow-indigo-200"; icon = "🌙"; }
-                else if (shift.type === 'post') { bgClass = "bg-orange-100 border-orange-200 text-orange-700"; icon = "💤"; }
-                else if (shift.type === 'libre') { bgClass = "bg-green-100 border-green-200 text-green-700"; icon = "🌿"; }
-            }
-            const todayKey = new Date().toISOString().split('T')[0];
-            const isToday = dateKey === todayKey ? "ring-2 ring-pink-500 ring-offset-1 z-10" : "";
-            const hasNote = shift && shift.note ? `<div class="absolute top-1 right-1 w-1.5 h-1.5 bg-yellow-400 rounded-full shadow-sm"></div>` : "";
-
-            return `
-                <div id="day-${dateKey}" onclick="openShiftModal('${dateKey}')" class="relative calendar-day cursor-pointer rounded-xl border flex flex-col items-center justify-center transition-all active:scale-90 ${bgClass} ${isToday}">
-                    ${hasNote}
-                    <span class="text-sm font-bold ${shift && ['guardia','dia','noche'].includes(shift.type) ? 'text-white' : ''}">${day}</span>
-                    ${shift && !['post','libre'].includes(shift.type) && !icon ? '' : `<span class="text-[10px] leading-none mt-0.5 opacity-80">${icon}</span>`}
-                </div>
-            `;
-        }
-        function changeMonth(delta) {
-            state.currentDate.setMonth(state.currentDate.getMonth() + delta);
-            renderView('turnario'); 
-        }
-        let selectedDateKey = null;
-        let tempShiftType = null;
-        function openShiftModal(dateKey) {
-            selectedDateKey = dateKey;
-            const shift = state.shifts[dateKey];
-            const [y, m, d] = dateKey.split('-');
-            const dateObj = new Date(y, m-1, d);
-            const dateTitle = dateObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
-            
-            document.getElementById('modal-date-title').innerText = dateTitle.charAt(0).toUpperCase() + dateTitle.slice(1);
-            document.getElementById('modal-note-input').value = shift ? (shift.note || '') : '';
-            tempShiftType = shift ? shift.type : null;
-            updateShiftTypeUI();
-            document.body.classList.add('modal-open');
-            document.getElementById('shift-modal').classList.remove('hidden');
-        }
-        function setShiftType(type) { tempShiftType = type; updateShiftTypeUI(); }
-        function updateShiftTypeUI() {
-            document.querySelectorAll('.shift-type-btn').forEach(btn => {
-                btn.classList.remove('ring-2', 'ring-pink-400', 'shadow-sm');
-                if (String(tempShiftType) === btn.dataset.type) btn.classList.add('ring-2', 'ring-pink-400', 'shadow-sm');
-            });
-        }
-        function closeModal() {
-            document.body.classList.remove('modal-open');
-            document.getElementById('shift-modal').classList.add('hidden');
-        }
-        function saveShift() {
-            const note = document.getElementById('modal-note-input').value.trim();
-            if (!tempShiftType && !note) delete state.shifts[selectedDateKey];
-            else state.shifts[selectedDateKey] = { type: tempShiftType, note: note };
-            saveData();
-            closeModal();
-            if (state.view === 'turnario') {
-                const dayEl = document.getElementById(`day-${selectedDateKey}`);
-                if(dayEl) { const [y, m, d] = selectedDateKey.split('-'); dayEl.outerHTML = createDayCellHTML(selectedDateKey, parseInt(d)); }
-            } else if (state.view === 'dashboard') { renderView('dashboard'); }
-            showToast("Guardado", "fa-check");
-        }
-
-        // --- NOTAS (CON CARPETAS Y EDICIÓN) ---
-        function getNotesHTML() {
-            // Filtrado por carpeta
-            let filteredNotes = state.notes;
-            if (state.currentFolderId !== 'all') {
-                filteredNotes = state.notes.filter(n => n.folderId === state.currentFolderId);
-            }
-
-            // Generar chips de carpetas
-            const foldersHTML = `
-                <div class="flex overflow-x-auto gap-2 pb-4 mb-2 no-scrollbar">
-                    <button onclick="changeFolder('all')" class="whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all ${state.currentFolderId === 'all' ? 'bg-gray-800 text-white shadow-md' : 'bg-white text-gray-500 border border-gray-200'}">
-                        Todas
-                    </button>
-                    ${state.folders.map(f => `
-                        <button onclick="changeFolder('${f.id}')" class="whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all ${state.currentFolderId === f.id ? 'bg-pink-600 text-white shadow-md' : 'bg-white text-gray-500 border border-gray-200'}">
-                            ${f.name}
-                        </button>
-                    `).join('')}
-                    <button onclick="openFolderModal()" class="whitespace-nowrap px-3 py-2 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">
-                        <i class="fa-solid fa-plus"></i>
-                    </button>
-                </div>
-            `;
-
-            const notesListHTML = filteredNotes.length === 0 
-                ? `<div class="text-center text-gray-400 text-sm mt-10 italic flex flex-col items-center"><i class="fa-regular fa-folder-open text-3xl mb-2 opacity-50"></i>Carpeta vacía</div>` 
-                : filteredNotes.map(n => createNoteHTML(n)).join('');
-
-            // UI de Edición vs Creación
-            let editorTitle = "Nueva Nota";
-            let btnText = "Guardar";
-            let cancelBtn = "";
-            let inputValue = "";
-            let imgPreviewClass = "hidden";
-            let imgPreviewSrc = "";
-
-            if (state.editingNoteId) {
-                const editingNote = state.notes.find(n => n.id === state.editingNoteId);
-                if (editingNote) {
-                    editorTitle = "Editando Nota";
-                    btnText = "Actualizar";
-                    inputValue = editingNote.text;
-                    cancelBtn = `<button onclick="cancelEdit()" class="text-gray-400 hover:text-gray-600 text-sm mr-3">Cancelar</button>`;
-                    if (editingNote.image) {
-                        imgPreviewClass = "";
-                        imgPreviewSrc = editingNote.image;
-                    }
-                }
-            }
-
-            // Nombre de carpeta actual para placeholder
-            const currentFolderName = state.folders.find(f => f.id === state.currentFolderId)?.name || "General";
-            const placeholder = state.currentFolderId === 'all' 
-                ? "Nota nueva (se guardará en General)..." 
-                : `Nota nueva en ${currentFolderName}...`;
-
-            return `
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-800 mb-2">Notas</h2>
-                    ${foldersHTML}
-                    
-                    <div id="note-editor" class="bg-white p-4 rounded-2xl shadow-sm mb-6 border border-gray-100 transition-all ${state.editingNoteId ? 'ring-2 ring-pink-100' : ''}">
-                        <div class="flex justify-between items-center mb-2">
-                            <span class="text-xs font-bold text-gray-400 uppercase">${editorTitle}</span>
-                            ${cancelBtn}
-                        </div>
-                        <textarea id="new-note-text" class="w-full p-2 border-b border-gray-100 focus:outline-none focus:border-pink-300 resize-none mb-2 font-handwriting text-lg bg-transparent" rows="3" placeholder="${placeholder}">${inputValue}</textarea>
-                        
-                        <div id="image-preview-container" class="${imgPreviewClass} mb-3 relative group w-fit">
-                            <img id="image-preview" src="${imgPreviewSrc}" class="h-24 rounded-lg border border-gray-200 object-cover shadow-sm">
-                            <button onclick="clearImageInput()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center transform scale-90"><i class="fa-solid fa-xmark text-xs"></i></button>
-                        </div>
-
-                        <div class="flex justify-between items-center mt-3">
-                            <label class="cursor-pointer text-gray-500 hover:text-pink-600 flex items-center gap-2 text-xs font-bold">
-                                <i class="fa-solid fa-camera"></i> Foto
-                                <input type="file" id="new-note-image" accept="image/*" class="hidden">
-                            </label>
-                            <button onclick="saveNote()" class="bg-pink-600 text-white px-5 py-1.5 rounded-lg text-sm font-bold hover:bg-pink-700 transform active:scale-95 transition-transform shadow-md">${btnText}</button>
-                        </div>
-                    </div>
-                    <div id="notes-list" class="grid grid-cols-1 gap-4 pb-20 masonry-layout">${notesListHTML}</div>
-                </div>
-            `;
-        }
-
-        function createNoteHTML(note) {
-            const img = note.image ? `<img src="${note.image}" class="w-full h-auto rounded-lg mb-3 border border-black/5">` : '';
-            // Buscar nombre de carpeta para mostrar un tag
-            const folderName = state.folders.find(f => f.id === note.folderId)?.name || 'General';
-            
-            return `
-                <div id="note-${note.id}" class="bg-yellow-50 p-5 rounded-xl shadow-sm border border-yellow-200/60 relative group item-enter hover:shadow-md transition-shadow">
-                    ${img}
-                    <p class="text-gray-800 whitespace-pre-wrap font-handwriting text-lg leading-relaxed">${note.text}</p>
-                    <div class="flex justify-between items-center mt-4 pt-2 border-t border-yellow-200/50">
-                        <span class="text-[10px] text-gray-400 bg-white/50 px-2 py-0.5 rounded-full">${folderName}</span>
-                        <div class="flex gap-2">
-                             <button onclick="copyNote(${note.id})" class="text-gray-400 hover:text-blue-500 bg-white rounded-full w-7 h-7 shadow-sm flex items-center justify-center transition-colors">
-                                <i class="fa-solid fa-copy text-xs"></i>
-                            </button>
-                             <button onclick="startEditNote(${note.id})" class="text-gray-400 hover:text-pink-500 bg-white rounded-full w-7 h-7 shadow-sm flex items-center justify-center transition-colors">
-                                <i class="fa-solid fa-pencil text-xs"></i>
-                            </button>
-                            <button onclick="confirmDelete('note', ${note.id})" class="text-red-300 hover:text-red-500 bg-white rounded-full w-7 h-7 shadow-sm flex items-center justify-center transition-colors">
-                                <i class="fa-solid fa-trash-can text-xs"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-        
-        function copyNote(id) {
-            const note = state.notes.find(n => n.id === id);
-            if(!note) return;
-            
-            const textarea = document.createElement('textarea');
-            textarea.value = note.text;
-            document.body.appendChild(textarea);
-            textarea.select();
-            try {
-                document.execCommand('copy');
-                showToast("Texto copiado", "fa-copy");
-            } catch (e) {
-                showToast("Error al copiar", "fa-times");
-            }
-            document.body.removeChild(textarea);
-        }
-
-        function changeFolder(folderId) {
-            state.currentFolderId = folderId;
-            renderView('notes');
-        }
-
-        function openFolderModal() {
-            document.body.classList.add('modal-open');
-            document.getElementById('folder-modal').classList.remove('hidden');
-            document.getElementById('new-folder-name').focus();
-        }
-        function closeFolderModal() {
-            document.body.classList.remove('modal-open');
-            document.getElementById('folder-modal').classList.add('hidden');
-            document.getElementById('new-folder-name').value = '';
-        }
-
-        function createFolder() {
-            const name = document.getElementById('new-folder-name').value.trim();
-            if (!name) return;
-            const id = 'f_' + Date.now();
-            state.folders.push({ id, name });
-            state.currentFolderId = id; // Cambiar a la nueva carpeta
-            saveData();
-            closeFolderModal();
-            renderView('notes');
-            showToast(`Carpeta "${name}" creada`, "fa-folder-plus");
-        }
-
-        function startEditNote(id) {
-            state.editingNoteId = id;
-            renderView('notes'); // Re-render para mostrar modo edición
-            // Scroll suave al editor
-            setTimeout(() => {
-                const editor = document.getElementById('note-editor');
-                if(editor) {
-                    editor.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    const input = document.getElementById('new-note-text');
-                    if(input) input.focus();
-                }
-            }, 100);
-        }
-
-        function cancelEdit() {
-            state.editingNoteId = null;
-            renderView('notes');
-        }
-
-        async function saveNote() {
-            const textInput = document.getElementById('new-note-text');
-            const fileInput = document.getElementById('new-note-image');
-            const imgPreview = document.getElementById('image-preview');
-            
-            const text = textInput.value.trim();
-            const file = fileInput.files[0];
-
-            if (!text && !file && imgPreview.classList.contains('hidden')) {
-                return showToast("La nota está vacía", "fa-pen");
-            }
-
-            // Procesar imagen nueva si existe
-            let imageData = null;
-            if (file) {
-                try { imageData = await processImage(file); } 
-                catch (e) { return showToast("Error al procesar imagen", "fa-times"); }
-            } else if (!document.getElementById('image-preview-container').classList.contains('hidden')) {
-                // Mantener imagen existente si estamos editando y no se subió una nueva
-                imageData = imgPreview.src;
-            }
-
-            if (state.editingNoteId) {
-                // ACTUALIZAR
-                const noteIndex = state.notes.findIndex(n => n.id === state.editingNoteId);
-                if (noteIndex > -1) {
-                    state.notes[noteIndex].text = text;
-                    state.notes[noteIndex].image = imageData;
-                    // Mantener carpeta original o mover? Mejor mantener.
-                    showToast("Nota actualizada", "fa-check");
-                }
-                state.editingNoteId = null;
-            } else {
-                // CREAR
-                const targetFolder = state.currentFolderId === 'all' ? 'general' : state.currentFolderId;
-                const newNote = { 
-                    id: Date.now(), 
-                    text, 
-                    image: imageData,
-                    folderId: targetFolder
-                };
-                state.notes.unshift(newNote);
-                showToast("Nota guardada", "fa-check");
-            }
-
-            saveData();
-            renderView('notes');
-        }
-
-        function deleteNote(id) {
-            state.notes = state.notes.filter(n => n.id !== id);
-            if (state.editingNoteId === id) {
-                state.editingNoteId = null;
-                // Limpiar editor si estaba activo en la nota borrada
-                document.getElementById('new-note-text').value = '';
-                document.getElementById('image-preview-container').classList.add('hidden');
-            }
-            saveData();
-            
-            const el = document.getElementById(`note-${id}`);
-            if(el) { 
-                el.classList.add('item-leave'); 
-                setTimeout(() => el.remove(), 300); 
-            }
-            showToast("Nota eliminada", "fa-trash");
-        }
-
-        // --- LINKS ---
+        // Links
         function getLinksHTML() {
             const linksHTML = state.links.map(l => createLinkHTML(l)).join('');
-            return `
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Links</h2>
-                    <div class="bg-white p-5 rounded-xl shadow-sm mb-6 border border-gray-100 flex flex-col gap-3">
-                        <input type="text" id="link-title" placeholder="Título" class="w-full p-2 border rounded-lg text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-pink-500">
-                        <input type="url" id="link-url" placeholder="URL" class="w-full p-2 border rounded-lg text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-pink-500">
-                        <button onclick="addLink()" class="bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700 font-bold shadow-sm mt-1">Añadir</button>
-                    </div>
-                    <div id="links-list" class="space-y-3 pb-20">${linksHTML}</div>
-                </div>
-            `;
+            return `<div><h2 class="text-2xl font-bold text-gray-800 mb-4">Links</h2><div class="bg-white p-5 rounded-xl shadow-sm mb-6 border border-gray-100 flex flex-col gap-3"><input type="text" id="link-title" placeholder="Título" class="w-full p-2 border rounded-lg text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-pink-500"><input type="url" id="link-url" placeholder="URL" class="w-full p-2 border rounded-lg text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-pink-500"><button onclick="addLink()" class="bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700 font-bold shadow-sm mt-1">Añadir</button></div><div id="links-list" class="space-y-3 pb-20">${linksHTML}</div></div>`;
         }
         function createLinkHTML(link) {
             const favicon = `https://www.google.com/s2/favicons?domain=${link.url}&sz=64`;
-            return `
-                <div id="link-${link.id}" class="flex items-center bg-white p-3 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition item-enter">
-                    <img src="${favicon}" class="w-10 h-10 rounded-lg bg-gray-50 p-1 mr-3 object-contain border border-gray-100" onerror="this.src='https://via.placeholder.com/32'">
-                    <a href="${link.url}" target="_blank" class="flex-1 text-gray-700 font-bold truncate hover:text-pink-600 transition-colors">
-                        ${link.title}
-                        <div class="text-[10px] text-gray-400 font-normal truncate">${link.url}</div>
-                    </a>
-                    <button onclick="confirmDelete('link', ${link.id})" class="text-gray-300 hover:text-red-500 ml-2 px-3 py-2 rounded-lg hover:bg-red-50 transition-colors"><i class="fa-solid fa-trash-can"></i></button>
-                </div>
-            `;
+            return `<div id="link-${link.id}" class="flex items-center bg-white p-3 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition item-enter"><img src="${favicon}" class="w-10 h-10 rounded-lg bg-gray-50 p-1 mr-3 object-contain border border-gray-100" onerror="this.src='https://via.placeholder.com/32'"><a href="${link.url}" target="_blank" class="flex-1 text-gray-700 font-bold truncate hover:text-pink-600 transition-colors">${link.title}<div class="text-[10px] text-gray-400 font-normal truncate">${link.url}</div></a><button onclick="confirmDelete('link', ${link.id})" class="text-gray-300 hover:text-red-500 ml-2 px-3 py-2 rounded-lg hover:bg-red-50 transition-colors"><i class="fa-solid fa-trash-can"></i></button></div>`;
         }
         function addLink() {
             const t = document.getElementById('link-title').value.trim();
@@ -878,7 +709,32 @@
             if(el) { el.classList.add('item-leave'); setTimeout(() => el.remove(), 300); }
         }
 
-        // --- UTILS ---
+        // Utils
+        function copyNote(id) {
+            const note = state.notes.find(n => n.id === id);
+            if(!note) return;
+            const textarea = document.createElement('textarea');
+            textarea.value = note.text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try { document.execCommand('copy'); showToast("Texto copiado", "fa-copy"); } catch (e) { showToast("Error al copiar", "fa-times"); }
+            document.body.removeChild(textarea);
+        }
+        function openFolderModal() { document.body.classList.add('modal-open'); document.getElementById('folder-modal').classList.remove('hidden'); document.getElementById('new-folder-name').focus(); }
+        function closeFolderModal() { document.body.classList.remove('modal-open'); document.getElementById('folder-modal').classList.add('hidden'); document.getElementById('new-folder-name').value = ''; }
+        function createFolder() {
+            const name = document.getElementById('new-folder-name').value.trim();
+            if (!name) return;
+            const id = 'f_' + Date.now();
+            state.folders.push({ id, name });
+            state.currentFolderId = id; 
+            saveData();
+            closeFolderModal();
+            // Refresco manual de carpetas para no recargar todo
+            document.getElementById('folders-container').innerHTML = generateFoldersHTML();
+            changeFolder(id); // Activar la nueva
+            showToast(`Carpeta "${name}" creada`, "fa-folder-plus");
+        }
         function processImage(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -903,48 +759,36 @@
                 reader.onerror = reject;
             });
         }
-        function previewImage(input) {
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const img = document.getElementById('image-preview');
-                    if(img) {
-                        img.src = e.target.result;
-                        document.getElementById('image-preview-container').classList.remove('hidden');
-                    }
-                }
-                reader.readAsDataURL(input.files[0]);
-            }
-        }
-        function clearImageInput() {
-            document.getElementById('new-note-image').value = '';
-            document.getElementById('image-preview-container').classList.add('hidden');
-            document.getElementById('image-preview').src = '';
-        }
+        function previewImage(input) { if (input.files && input.files[0]) { const reader = new FileReader(); reader.onload = function(e) { const img = document.getElementById('image-preview'); if(img) { img.src = e.target.result; document.getElementById('image-preview-container').classList.remove('hidden'); } }; reader.readAsDataURL(input.files[0]); } }
+        function clearImageInput() { document.getElementById('new-note-image').value = ''; document.getElementById('image-preview-container').classList.add('hidden'); document.getElementById('image-preview').src = ''; }
 
-        // --- MODAL DELETE ---
+        // Calendar Wrappers (Reutilizados del anterior)
+        function getTurnarioHTML() {
+             const year = state.currentDate.getFullYear(); const month = state.currentDate.getMonth(); const firstDay = new Date(year, month, 1); const lastDay = new Date(year, month + 1, 0); const daysInMonth = lastDay.getDate(); const startingDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1; const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+            let html = `<div><div class="flex justify-between items-center mb-6 bg-white p-4 rounded-2xl shadow-sm border border-gray-100"><button onclick="changeMonth(-1)" class="w-8 h-8 flex items-center justify-center text-pink-600 active:bg-gray-100 rounded-full"><i class="fa-solid fa-chevron-left"></i></button><h2 class="text-lg font-bold text-gray-800 capitalize">${monthNames[month]} <span class="text-pink-600">${year}</span></h2><button onclick="changeMonth(1)" class="w-8 h-8 flex items-center justify-center text-pink-600 active:bg-gray-100 rounded-full"><i class="fa-solid fa-chevron-right"></i></button></div><div class="grid grid-cols-7 gap-2 mb-2 text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest"><div>L</div><div>M</div><div>X</div><div>J</div><div>V</div><div>S</div><div>D</div></div><div id="calendar-grid" class="grid grid-cols-7 gap-1.5 sm:gap-2">`;
+            for (let i = 0; i < startingDay; i++) html += `<div></div>`;
+            for (let day = 1; day <= daysInMonth; day++) { const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`; html += createDayCellHTML(dateKey, day); }
+            html += `</div><div class="mt-6 p-4 bg-white rounded-2xl shadow-sm border border-gray-100 text-xs text-gray-500 grid grid-cols-3 gap-2"><span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-500"></span> Guardia</span><span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-blue-500"></span> Día</span><span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-indigo-600"></span> Noche</span><span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-orange-300"></span> Post</span><span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-green-400"></span> Libre</span></div></div>`; return html;
+        }
+        function createDayCellHTML(dateKey, day) {
+            const shift = state.shifts[dateKey]; let bgClass = "bg-white border-gray-100 text-gray-600 hover:border-pink-200"; let icon = "";
+            if (shift) { if (shift.type === 'guardia') { bgClass = "bg-red-500 border-red-600 text-white shadow-md shadow-red-200"; icon = "🚨"; } else if (shift.type === 'dia') { bgClass = "bg-blue-500 border-blue-600 text-white shadow-md shadow-blue-200"; icon = "☀️"; } else if (shift.type === 'noche') { bgClass = "bg-indigo-600 border-indigo-700 text-white shadow-md shadow-indigo-200"; icon = "🌙"; } else if (shift.type === 'post') { bgClass = "bg-orange-100 border-orange-200 text-orange-700"; icon = "💤"; } else if (shift.type === 'libre') { bgClass = "bg-green-100 border-green-200 text-green-700"; icon = "🌿"; } }
+            const todayKey = new Date().toISOString().split('T')[0]; const isToday = dateKey === todayKey ? "ring-2 ring-pink-500 ring-offset-1 z-10" : ""; const hasNote = shift && shift.note ? `<div class="absolute top-1 right-1 w-1.5 h-1.5 bg-yellow-400 rounded-full shadow-sm"></div>` : "";
+            return `<div id="day-${dateKey}" onclick="openShiftModal('${dateKey}')" class="relative calendar-day cursor-pointer rounded-xl border flex flex-col items-center justify-center transition-all active:scale-90 ${bgClass} ${isToday}">${hasNote}<span class="text-sm font-bold ${shift && ['guardia','dia','noche'].includes(shift.type) ? 'text-white' : ''}">${day}</span>${shift && !['post','libre'].includes(shift.type) && !icon ? '' : `<span class="text-[10px] leading-none mt-0.5 opacity-80">${icon}</span>`}</div>`;
+        }
+        function changeMonth(delta) { state.currentDate.setMonth(state.currentDate.getMonth() + delta); renderView('turnario'); }
+        let selectedDateKey = null; let tempShiftType = null;
+        function openShiftModal(dateKey) { selectedDateKey = dateKey; const shift = state.shifts[dateKey]; const [y, m, d] = dateKey.split('-'); const dateObj = new Date(y, m-1, d); const dateTitle = dateObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }); document.getElementById('modal-date-title').innerText = dateTitle.charAt(0).toUpperCase() + dateTitle.slice(1); document.getElementById('modal-note-input').value = shift ? (shift.note || '') : ''; tempShiftType = shift ? shift.type : null; updateShiftTypeUI(); document.body.classList.add('modal-open'); document.getElementById('shift-modal').classList.remove('hidden'); }
+        function setShiftType(type) { tempShiftType = type; updateShiftTypeUI(); }
+        function updateShiftTypeUI() { document.querySelectorAll('.shift-type-btn').forEach(btn => { btn.classList.remove('ring-2', 'ring-pink-400', 'shadow-sm'); if (String(tempShiftType) === btn.dataset.type) btn.classList.add('ring-2', 'ring-pink-400', 'shadow-sm'); }); }
+        function closeModal() { document.body.classList.remove('modal-open'); document.getElementById('shift-modal').classList.add('hidden'); }
+        function saveShift() { const note = document.getElementById('modal-note-input').value.trim(); if (!tempShiftType && !note) delete state.shifts[selectedDateKey]; else state.shifts[selectedDateKey] = { type: tempShiftType, note: note }; saveData(); closeModal(); if (state.view === 'turnario') { const dayEl = document.getElementById(`day-${selectedDateKey}`); if(dayEl) { const [y, m, d] = selectedDateKey.split('-'); dayEl.outerHTML = createDayCellHTML(selectedDateKey, parseInt(d)); } } else if (state.view === 'dashboard') { renderView('dashboard'); } showToast("Guardado", "fa-check"); }
+
+        // Modal Confirm
         let itemToDelete = null;
-        function confirmDelete(type, id) {
-            itemToDelete = { type, id };
-            const modal = document.getElementById('confirm-modal');
-            const msg = document.getElementById('confirm-message');
-            if(type === 'todo') msg.innerText = "¿Completar borrado?";
-            document.body.classList.add('modal-open');
-            modal.classList.remove('hidden');
-            document.getElementById('confirm-btn-action').onclick = executeDelete;
-        }
-        function closeConfirmModal() {
-            document.body.classList.remove('modal-open');
-            document.getElementById('confirm-modal').classList.add('hidden');
-            itemToDelete = null;
-        }
-        function executeDelete() {
-            if (!itemToDelete) return;
-            if (itemToDelete.type === 'todo') deleteTodo(itemToDelete.id);
-            else if (itemToDelete.type === 'note') deleteNote(itemToDelete.id);
-            else if (itemToDelete.type === 'link') deleteLink(itemToDelete.id);
-            closeConfirmModal();
-        }
+        function confirmDelete(type, id) { itemToDelete = { type, id }; const modal = document.getElementById('confirm-modal'); const msg = document.getElementById('confirm-message'); if(type === 'todo') msg.innerText = "¿Completar borrado?"; document.body.classList.add('modal-open'); modal.classList.remove('hidden'); document.getElementById('confirm-btn-action').onclick = executeDelete; }
+        function closeConfirmModal() { document.body.classList.remove('modal-open'); document.getElementById('confirm-modal').classList.add('hidden'); itemToDelete = null; }
+        function executeDelete() { if (!itemToDelete) return; if (itemToDelete.type === 'todo') deleteTodo(itemToDelete.id); else if (itemToDelete.type === 'note') deleteNote(itemToDelete.id); else if (itemToDelete.type === 'link') deleteLink(itemToDelete.id); closeConfirmModal(); }
 
         init();
     </script>
