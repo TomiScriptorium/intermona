@@ -30,7 +30,7 @@
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* Animaciones para vistas */
+        /* Animaciones */
         .view-transition {
             animation: fadeIn 0.3s ease-out;
         }
@@ -40,7 +40,6 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Animaciones para elementos de lista (Insertar/Borrar) */
         @keyframes slideIn {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -152,20 +151,35 @@
         </div>
     </div>
 
+    <!-- Modal Nueva Carpeta -->
+    <div id="folder-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-xs p-6 transform transition-all scale-100">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">Nueva Carpeta</h3>
+            <input type="text" id="new-folder-name" class="w-full p-3 border border-gray-200 rounded-lg mb-4 focus:ring-2 focus:ring-pink-500 outline-none" placeholder="Nombre (ej. Cardiología)">
+            <div class="flex justify-end gap-3">
+                <button onclick="closeFolderModal()" class="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg">Cancelar</button>
+                <button onclick="createFolder()" class="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 font-bold">Crear</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast -->
     <div id="toast" class="fixed top-24 left-1/2 transform -translate-x-1/2 bg-gray-800/90 backdrop-blur text-white px-6 py-3 rounded-full shadow-xl opacity-0 transition-all duration-300 pointer-events-none z-[70] flex items-center gap-2 text-sm font-medium translate-y-2">
         <i class="fa-solid fa-info-circle"></i> <span id="toast-msg">Mensaje</span>
     </div>
 
     <script>
-        const APP_KEY = 'intermona_data_v1';
+        const APP_KEY = 'intermona_data_v2'; 
         let state = {
             view: 'dashboard', 
             todos: [],
             notes: [],
+            folders: [],
             links: [],
             shifts: {},
-            currentDate: new Date()
+            currentDate: new Date(),
+            currentFolderId: 'all',
+            editingNoteId: null
         };
 
         function init() {
@@ -175,23 +189,36 @@
 
         function loadData() {
             const saved = localStorage.getItem(APP_KEY);
+            const savedOld = localStorage.getItem('intermona_data_v1');
+            
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
                     state = { ...state, ...parsed, currentDate: new Date() }; 
-                } catch (e) {
-                    console.error("Error cargando datos", e);
-                }
+                } catch (e) { console.error("Error data", e); }
+            } else if (savedOld) {
+                try {
+                    const parsedOld = JSON.parse(savedOld);
+                    state = { ...state, ...parsedOld, currentDate: new Date() };
+                    state.folders = [{id: 'general', name: 'General'}];
+                    state.notes = state.notes.map(n => ({...n, folderId: 'general'}));
+                    saveData();
+                    showToast("Datos actualizados a v2", "fa-circle-up");
+                } catch(e) {}
             } else {
-                state.todos = [
-                    { id: 1, text: "Bienvenido a Intermona", done: false }
-                ];
+                state.folders = [{id: 'general', name: 'General'}];
+                state.todos = [{ id: 1, text: "Bienvenido a Intermona", done: false }];
+            }
+
+            if (!state.folders || state.folders.length === 0) {
+                state.folders = [{id: 'general', name: 'General'}];
             }
         }
 
         function saveData() {
             const toSave = { ...state };
             delete toSave.currentDate; 
+            delete toSave.editingNoteId; 
             localStorage.setItem(APP_KEY, JSON.stringify(toSave));
         }
 
@@ -225,9 +252,13 @@
 
         // --- CORE RENDER SYSTEM ---
         function renderView(viewName) {
+            // Solo reseteamos la edición si cambiamos de sección, no si recargamos la misma (ej. al editar)
+            if (viewName !== 'notes') {
+                state.editingNoteId = null;
+            }
+            
             state.view = viewName;
             
-            // Navegación Activa
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 const icon = btn.querySelector('i');
                 if(btn.dataset.target === viewName) {
@@ -242,11 +273,9 @@
             });
 
             const container = document.getElementById('app-container');
-            // Aquí limpiamos el contenedor SOLO al cambiar de vista completa
             container.innerHTML = ''; 
             container.scrollTop = 0;
 
-            // Creamos un wrapper para la animación de entrada
             const wrapper = document.createElement('div');
             wrapper.className = "view-transition max-w-lg mx-auto";
             
@@ -259,6 +288,12 @@
             }
             
             container.appendChild(wrapper);
+            
+            if (viewName === 'notes') {
+                const imgInput = document.getElementById('new-note-image');
+                if(imgInput) imgInput.addEventListener('change', function() { previewImage(this); });
+            }
+            
             saveData();
         }
 
@@ -300,12 +335,10 @@
                 else if (shift.type === 'post') { shiftCardClass = "bg-gradient-to-br from-orange-400 to-orange-500 text-white border-orange-500 shadow-orange-200"; shiftText = "Post-Guardia"; shiftIcon = "fa-bed"; cardIconColor = "text-white/30"; }
                 else if (shift.type === 'libre') { shiftCardClass = "bg-gradient-to-br from-green-500 to-green-600 text-white border-green-600 shadow-green-200"; shiftText = "Día Libre"; shiftIcon = "fa-mug-hot"; cardIconColor = "text-white/30"; }
 
-                if (isNextShift) {
-                    if (shift.type !== 'libre') {
-                         shiftCardClass = "bg-white border-l-4 border-l-" + (shift.type === 'guardia' ? 'red' : shift.type === 'dia' ? 'blue' : shift.type === 'noche' ? 'indigo' : 'orange') + "-500 border-gray-200 text-gray-700";
-                         cardIconColor = (shift.type === 'guardia' ? 'text-red' : shift.type === 'dia' ? 'text-blue' : shift.type === 'noche' ? 'text-indigo' : 'text-orange') + "-100";
-                         shiftText = `<span class="text-${shift.type === 'guardia' ? 'red' : shift.type === 'dia' ? 'blue' : 'indigo'}-600 font-bold">${shiftText}</span>`;
-                    }
+                if (isNextShift && shift.type !== 'libre') {
+                     shiftCardClass = "bg-white border-l-4 border-l-" + (shift.type === 'guardia' ? 'red' : shift.type === 'dia' ? 'blue' : shift.type === 'noche' ? 'indigo' : 'orange') + "-500 border-gray-200 text-gray-700";
+                     cardIconColor = (shift.type === 'guardia' ? 'text-red' : shift.type === 'dia' ? 'text-blue' : shift.type === 'noche' ? 'text-indigo' : 'text-orange') + "-100";
+                     shiftText = `<span class="text-${shift.type === 'guardia' ? 'red' : shift.type === 'dia' ? 'blue' : 'indigo'}-600 font-bold">${shiftText}</span>`;
                 }
             }
 
@@ -362,9 +395,8 @@
             `;
         }
 
-        // --- TODO LIST (FLUIDO) ---
+        // --- TODO LIST ---
         function getTodoHTML() {
-            // Genera la estructura base
             const todosHTML = state.todos.length === 0 
                 ? getEmptyTodoHTML() 
                 : state.todos.sort((a,b) => a.done - b.done).map(t => createTodoItemHTML(t)).join('');
@@ -405,7 +437,6 @@
                 </li>
             `;
         }
-
         function getEmptyTodoHTML() {
             return `<div id="empty-todo" class="text-center py-10 opacity-60"><i class="fa-solid fa-clipboard-check text-4xl text-gray-300 mb-2"></i><p class="text-sm">Sin tareas pendientes</p></div>`;
         }
@@ -414,32 +445,23 @@
             const input = document.getElementById('new-todo');
             const text = input.value.trim();
             if (!text) return;
-
             const newTodo = { id: Date.now(), text, done: false };
             state.todos.unshift(newTodo);
             saveData();
-
-            // DOM UPDATE (Sin recargar todo)
             const list = document.getElementById('todo-list');
             const emptyMsg = document.getElementById('empty-todo');
             if(emptyMsg) emptyMsg.remove();
-            
             list.insertAdjacentHTML('afterbegin', createTodoItemHTML(newTodo));
             input.value = '';
         }
-
         function toggleTodo(id) {
             const todo = state.todos.find(t => t.id === id);
             if (!todo) return;
-            
             todo.done = !todo.done;
             saveData();
-
-            // DOM UPDATE "QUIRÚRGICO"
             const el = document.getElementById(`todo-${id}`);
             const icon = document.getElementById(`icon-${id}`);
             const text = document.getElementById(`text-${id}`);
-
             if (todo.done) {
                 el.className = "flex items-center gap-3 p-4 rounded-xl shadow-sm border border-gray-100 bg-gray-50 transition-all group";
                 icon.className = "fa-regular fa-square-check text-gray-400";
@@ -450,20 +472,15 @@
                 text.className = "flex-1 text-gray-700 font-medium cursor-pointer select-none";
             }
         }
-
         function deleteTodo(id) {
             state.todos = state.todos.filter(t => t.id !== id);
             saveData();
-            
             const el = document.getElementById(`todo-${id}`);
-            if (el) {
-                el.classList.add('item-leave');
-                setTimeout(() => el.remove(), 300); // Esperar animación
-            }
+            if (el) { el.classList.add('item-leave'); setTimeout(() => el.remove(), 300); }
             showToast("Tarea eliminada", "fa-trash");
         }
 
-        // --- CALENDAR (TURNARIO) ---
+        // --- CALENDAR ---
         function getTurnarioHTML() {
             const year = state.currentDate.getFullYear();
             const month = state.currentDate.getMonth();
@@ -506,7 +523,6 @@
             const shift = state.shifts[dateKey];
             let bgClass = "bg-white border-gray-100 text-gray-600 hover:border-pink-200";
             let icon = "";
-            
             if (shift) {
                 if (shift.type === 'guardia') { bgClass = "bg-red-500 border-red-600 text-white shadow-md shadow-red-200"; icon = "🚨"; }
                 else if (shift.type === 'dia') { bgClass = "bg-blue-500 border-blue-600 text-white shadow-md shadow-blue-200"; icon = "☀️"; }
@@ -526,15 +542,12 @@
                 </div>
             `;
         }
-
         function changeMonth(delta) {
             state.currentDate.setMonth(state.currentDate.getMonth() + delta);
-            renderView('turnario'); // En calendario sí recargamos la vista porque cambia todo
+            renderView('turnario'); 
         }
-
         let selectedDateKey = null;
         let tempShiftType = null;
-
         function openShiftModal(dateKey) {
             selectedDateKey = dateKey;
             const shift = state.shifts[dateKey];
@@ -546,124 +559,276 @@
             document.getElementById('modal-note-input').value = shift ? (shift.note || '') : '';
             tempShiftType = shift ? shift.type : null;
             updateShiftTypeUI();
-            
             document.body.classList.add('modal-open');
             document.getElementById('shift-modal').classList.remove('hidden');
         }
-
-        function setShiftType(type) {
-            tempShiftType = type;
-            updateShiftTypeUI();
-        }
-
+        function setShiftType(type) { tempShiftType = type; updateShiftTypeUI(); }
         function updateShiftTypeUI() {
             document.querySelectorAll('.shift-type-btn').forEach(btn => {
                 btn.classList.remove('ring-2', 'ring-pink-400', 'shadow-sm');
                 if (String(tempShiftType) === btn.dataset.type) btn.classList.add('ring-2', 'ring-pink-400', 'shadow-sm');
             });
         }
-
         function closeModal() {
             document.body.classList.remove('modal-open');
             document.getElementById('shift-modal').classList.add('hidden');
         }
-
         function saveShift() {
             const note = document.getElementById('modal-note-input').value.trim();
             if (!tempShiftType && !note) delete state.shifts[selectedDateKey];
             else state.shifts[selectedDateKey] = { type: tempShiftType, note: note };
-            
             saveData();
             closeModal();
-            
-            // Actualizar SOLO la celda del calendario si estamos viéndolo
             if (state.view === 'turnario') {
                 const dayEl = document.getElementById(`day-${selectedDateKey}`);
-                if(dayEl) {
-                    const [y, m, d] = selectedDateKey.split('-');
-                    dayEl.outerHTML = createDayCellHTML(selectedDateKey, parseInt(d));
-                }
-            } else if (state.view === 'dashboard') {
-                renderView('dashboard'); // En dashboard recargamos porque afecta a tarjetas principales
-            }
+                if(dayEl) { const [y, m, d] = selectedDateKey.split('-'); dayEl.outerHTML = createDayCellHTML(selectedDateKey, parseInt(d)); }
+            } else if (state.view === 'dashboard') { renderView('dashboard'); }
             showToast("Guardado", "fa-check");
         }
 
-        // --- NOTES & LINKS (Patrón similar: Updates fluidos) ---
+        // --- NOTAS (CON CARPETAS Y EDICIÓN) ---
         function getNotesHTML() {
-            const notesHTML = state.notes.length === 0 
-                ? `<p class="text-center text-gray-400 text-sm mt-10 italic">No tienes notas.</p>` 
-                : state.notes.map(n => createNoteHTML(n)).join('');
+            // Filtrado por carpeta
+            let filteredNotes = state.notes;
+            if (state.currentFolderId !== 'all') {
+                filteredNotes = state.notes.filter(n => n.folderId === state.currentFolderId);
+            }
+
+            // Generar chips de carpetas
+            const foldersHTML = `
+                <div class="flex overflow-x-auto gap-2 pb-4 mb-2 no-scrollbar">
+                    <button onclick="changeFolder('all')" class="whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all ${state.currentFolderId === 'all' ? 'bg-gray-800 text-white shadow-md' : 'bg-white text-gray-500 border border-gray-200'}">
+                        Todas
+                    </button>
+                    ${state.folders.map(f => `
+                        <button onclick="changeFolder('${f.id}')" class="whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all ${state.currentFolderId === f.id ? 'bg-pink-600 text-white shadow-md' : 'bg-white text-gray-500 border border-gray-200'}">
+                            ${f.name}
+                        </button>
+                    `).join('')}
+                    <button onclick="openFolderModal()" class="whitespace-nowrap px-3 py-2 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+            `;
+
+            const notesListHTML = filteredNotes.length === 0 
+                ? `<div class="text-center text-gray-400 text-sm mt-10 italic flex flex-col items-center"><i class="fa-regular fa-folder-open text-3xl mb-2 opacity-50"></i>Carpeta vacía</div>` 
+                : filteredNotes.map(n => createNoteHTML(n)).join('');
+
+            // UI de Edición vs Creación
+            let editorTitle = "Nueva Nota";
+            let btnText = "Guardar";
+            let cancelBtn = "";
+            let inputValue = "";
+            let imgPreviewClass = "hidden";
+            let imgPreviewSrc = "";
+
+            if (state.editingNoteId) {
+                const editingNote = state.notes.find(n => n.id === state.editingNoteId);
+                if (editingNote) {
+                    editorTitle = "Editando Nota";
+                    btnText = "Actualizar";
+                    inputValue = editingNote.text;
+                    cancelBtn = `<button onclick="cancelEdit()" class="text-gray-400 hover:text-gray-600 text-sm mr-3">Cancelar</button>`;
+                    if (editingNote.image) {
+                        imgPreviewClass = "";
+                        imgPreviewSrc = editingNote.image;
+                    }
+                }
+            }
+
+            // Nombre de carpeta actual para placeholder
+            const currentFolderName = state.folders.find(f => f.id === state.currentFolderId)?.name || "General";
+            const placeholder = state.currentFolderId === 'all' 
+                ? "Nota nueva (se guardará en General)..." 
+                : `Nota nueva en ${currentFolderName}...`;
 
             return `
                 <div>
-                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Notas</h2>
-                    <div class="bg-white p-4 rounded-2xl shadow-sm mb-6 border border-gray-100">
-                        <textarea id="new-note-text" class="w-full p-2 border-b border-gray-100 focus:outline-none focus:border-pink-300 resize-none mb-2 font-handwriting text-lg bg-transparent" rows="2" placeholder="Escribe algo..."></textarea>
-                        <div id="image-preview-container" class="hidden mb-3 relative group w-fit">
-                            <img id="image-preview" class="h-24 rounded-lg border border-gray-200 object-cover shadow-sm">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-2">Notas</h2>
+                    ${foldersHTML}
+                    
+                    <div id="note-editor" class="bg-white p-4 rounded-2xl shadow-sm mb-6 border border-gray-100 transition-all ${state.editingNoteId ? 'ring-2 ring-pink-100' : ''}">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs font-bold text-gray-400 uppercase">${editorTitle}</span>
+                            ${cancelBtn}
+                        </div>
+                        <textarea id="new-note-text" class="w-full p-2 border-b border-gray-100 focus:outline-none focus:border-pink-300 resize-none mb-2 font-handwriting text-lg bg-transparent" rows="3" placeholder="${placeholder}">${inputValue}</textarea>
+                        
+                        <div id="image-preview-container" class="${imgPreviewClass} mb-3 relative group w-fit">
+                            <img id="image-preview" src="${imgPreviewSrc}" class="h-24 rounded-lg border border-gray-200 object-cover shadow-sm">
                             <button onclick="clearImageInput()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center transform scale-90"><i class="fa-solid fa-xmark text-xs"></i></button>
                         </div>
+
                         <div class="flex justify-between items-center mt-3">
                             <label class="cursor-pointer text-gray-500 hover:text-pink-600 flex items-center gap-2 text-xs font-bold">
                                 <i class="fa-solid fa-camera"></i> Foto
-                                <input type="file" id="new-note-image" accept="image/*" class="hidden" onchange="previewImage(this)">
+                                <input type="file" id="new-note-image" accept="image/*" class="hidden">
                             </label>
-                            <button onclick="addNote()" class="bg-pink-600 text-white px-5 py-1.5 rounded-lg text-sm font-bold hover:bg-pink-700 transform active:scale-95">Guardar</button>
+                            <button onclick="saveNote()" class="bg-pink-600 text-white px-5 py-1.5 rounded-lg text-sm font-bold hover:bg-pink-700 transform active:scale-95 transition-transform shadow-md">${btnText}</button>
                         </div>
                     </div>
-                    <div id="notes-list" class="grid grid-cols-1 gap-4">${notesHTML}</div>
+                    <div id="notes-list" class="grid grid-cols-1 gap-4 pb-20 masonry-layout">${notesListHTML}</div>
                 </div>
             `;
         }
 
         function createNoteHTML(note) {
             const img = note.image ? `<img src="${note.image}" class="w-full h-auto rounded-lg mb-3 border border-black/5">` : '';
+            // Buscar nombre de carpeta para mostrar un tag
+            const folderName = state.folders.find(f => f.id === note.folderId)?.name || 'General';
+            
             return `
-                <div id="note-${note.id}" class="bg-yellow-50 p-5 rounded-xl shadow-sm border border-yellow-200/60 relative group item-enter">
+                <div id="note-${note.id}" class="bg-yellow-50 p-5 rounded-xl shadow-sm border border-yellow-200/60 relative group item-enter hover:shadow-md transition-shadow">
                     ${img}
                     <p class="text-gray-800 whitespace-pre-wrap font-handwriting text-lg leading-relaxed">${note.text}</p>
-                    <div class="text-[10px] text-gray-400 mt-4 flex justify-between items-center pt-2 border-t border-yellow-200/50">
-                        <span>${new Date(note.id).toLocaleDateString()}</span>
-                        <button onclick="confirmDelete('note', ${note.id})" class="text-red-300 hover:text-red-500 bg-white rounded-full w-7 h-7 shadow-sm flex items-center justify-center"><i class="fa-solid fa-trash-can"></i></button>
+                    <div class="flex justify-between items-center mt-4 pt-2 border-t border-yellow-200/50">
+                        <span class="text-[10px] text-gray-400 bg-white/50 px-2 py-0.5 rounded-full">${folderName}</span>
+                        <div class="flex gap-2">
+                             <button onclick="copyNote(${note.id})" class="text-gray-400 hover:text-blue-500 bg-white rounded-full w-7 h-7 shadow-sm flex items-center justify-center transition-colors">
+                                <i class="fa-solid fa-copy text-xs"></i>
+                            </button>
+                             <button onclick="startEditNote(${note.id})" class="text-gray-400 hover:text-pink-500 bg-white rounded-full w-7 h-7 shadow-sm flex items-center justify-center transition-colors">
+                                <i class="fa-solid fa-pencil text-xs"></i>
+                            </button>
+                            <button onclick="confirmDelete('note', ${note.id})" class="text-red-300 hover:text-red-500 bg-white rounded-full w-7 h-7 shadow-sm flex items-center justify-center transition-colors">
+                                <i class="fa-solid fa-trash-can text-xs"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             `;
         }
+        
+        function copyNote(id) {
+            const note = state.notes.find(n => n.id === id);
+            if(!note) return;
+            
+            const textarea = document.createElement('textarea');
+            textarea.value = note.text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showToast("Texto copiado", "fa-copy");
+            } catch (e) {
+                showToast("Error al copiar", "fa-times");
+            }
+            document.body.removeChild(textarea);
+        }
 
-        async function addNote() {
+        function changeFolder(folderId) {
+            state.currentFolderId = folderId;
+            renderView('notes');
+        }
+
+        function openFolderModal() {
+            document.body.classList.add('modal-open');
+            document.getElementById('folder-modal').classList.remove('hidden');
+            document.getElementById('new-folder-name').focus();
+        }
+        function closeFolderModal() {
+            document.body.classList.remove('modal-open');
+            document.getElementById('folder-modal').classList.add('hidden');
+            document.getElementById('new-folder-name').value = '';
+        }
+
+        function createFolder() {
+            const name = document.getElementById('new-folder-name').value.trim();
+            if (!name) return;
+            const id = 'f_' + Date.now();
+            state.folders.push({ id, name });
+            state.currentFolderId = id; // Cambiar a la nueva carpeta
+            saveData();
+            closeFolderModal();
+            renderView('notes');
+            showToast(`Carpeta "${name}" creada`, "fa-folder-plus");
+        }
+
+        function startEditNote(id) {
+            state.editingNoteId = id;
+            renderView('notes'); // Re-render para mostrar modo edición
+            // Scroll suave al editor
+            setTimeout(() => {
+                const editor = document.getElementById('note-editor');
+                if(editor) {
+                    editor.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    const input = document.getElementById('new-note-text');
+                    if(input) input.focus();
+                }
+            }, 100);
+        }
+
+        function cancelEdit() {
+            state.editingNoteId = null;
+            renderView('notes');
+        }
+
+        async function saveNote() {
             const textInput = document.getElementById('new-note-text');
             const fileInput = document.getElementById('new-note-image');
+            const imgPreview = document.getElementById('image-preview');
+            
             const text = textInput.value.trim();
             const file = fileInput.files[0];
 
-            if (!text && !file) return showToast("Escribe algo...", "fa-pen");
+            if (!text && !file && imgPreview.classList.contains('hidden')) {
+                return showToast("La nota está vacía", "fa-pen");
+            }
 
+            // Procesar imagen nueva si existe
             let imageData = null;
             if (file) {
                 try { imageData = await processImage(file); } 
-                catch (e) { return showToast("Error imagen", "fa-times"); }
+                catch (e) { return showToast("Error al procesar imagen", "fa-times"); }
+            } else if (!document.getElementById('image-preview-container').classList.contains('hidden')) {
+                // Mantener imagen existente si estamos editando y no se subió una nueva
+                imageData = imgPreview.src;
             }
 
-            const newNote = { id: Date.now(), text, image: imageData };
-            state.notes.unshift(newNote);
-            saveData();
+            if (state.editingNoteId) {
+                // ACTUALIZAR
+                const noteIndex = state.notes.findIndex(n => n.id === state.editingNoteId);
+                if (noteIndex > -1) {
+                    state.notes[noteIndex].text = text;
+                    state.notes[noteIndex].image = imageData;
+                    // Mantener carpeta original o mover? Mejor mantener.
+                    showToast("Nota actualizada", "fa-check");
+                }
+                state.editingNoteId = null;
+            } else {
+                // CREAR
+                const targetFolder = state.currentFolderId === 'all' ? 'general' : state.currentFolderId;
+                const newNote = { 
+                    id: Date.now(), 
+                    text, 
+                    image: imageData,
+                    folderId: targetFolder
+                };
+                state.notes.unshift(newNote);
+                showToast("Nota guardada", "fa-check");
+            }
 
-            document.getElementById('notes-list').insertAdjacentHTML('afterbegin', createNoteHTML(newNote));
-            textInput.value = '';
-            clearImageInput();
-            showToast("Nota guardada", "fa-check");
+            saveData();
+            renderView('notes');
         }
 
         function deleteNote(id) {
             state.notes = state.notes.filter(n => n.id !== id);
-            saveData();
-            const el = document.getElementById(`note-${id}`);
-            if(el) {
-                el.classList.add('item-leave');
-                setTimeout(() => el.remove(), 300);
+            if (state.editingNoteId === id) {
+                state.editingNoteId = null;
+                // Limpiar editor si estaba activo en la nota borrada
+                document.getElementById('new-note-text').value = '';
+                document.getElementById('image-preview-container').classList.add('hidden');
             }
-            showToast("Eliminado", "fa-trash");
+            saveData();
+            
+            const el = document.getElementById(`note-${id}`);
+            if(el) { 
+                el.classList.add('item-leave'); 
+                setTimeout(() => el.remove(), 300); 
+            }
+            showToast("Nota eliminada", "fa-trash");
         }
 
         // --- LINKS ---
@@ -681,7 +846,6 @@
                 </div>
             `;
         }
-
         function createLinkHTML(link) {
             const favicon = `https://www.google.com/s2/favicons?domain=${link.url}&sz=64`;
             return `
@@ -695,13 +859,11 @@
                 </div>
             `;
         }
-
         function addLink() {
             const t = document.getElementById('link-title').value.trim();
             let u = document.getElementById('link-url').value.trim();
             if (!t || !u) return;
             if (!u.startsWith('http')) u = 'https://' + u;
-
             const newLink = { id: Date.now(), title: t, url: u };
             state.links.push(newLink);
             saveData();
@@ -709,15 +871,11 @@
             document.getElementById('link-title').value = '';
             document.getElementById('link-url').value = '';
         }
-
         function deleteLink(id) {
             state.links = state.links.filter(l => l.id !== id);
             saveData();
             const el = document.getElementById(`link-${id}`);
-            if(el) {
-                el.classList.add('item-leave');
-                setTimeout(() => el.remove(), 300);
-            }
+            if(el) { el.classList.add('item-leave'); setTimeout(() => el.remove(), 300); }
         }
 
         // --- UTILS ---
@@ -745,13 +903,15 @@
                 reader.onerror = reject;
             });
         }
-
         function previewImage(input) {
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    document.getElementById('image-preview').src = e.target.result;
-                    document.getElementById('image-preview-container').classList.remove('hidden');
+                    const img = document.getElementById('image-preview');
+                    if(img) {
+                        img.src = e.target.result;
+                        document.getElementById('image-preview-container').classList.remove('hidden');
+                    }
                 }
                 reader.readAsDataURL(input.files[0]);
             }
@@ -759,6 +919,7 @@
         function clearImageInput() {
             document.getElementById('new-note-image').value = '';
             document.getElementById('image-preview-container').classList.add('hidden');
+            document.getElementById('image-preview').src = '';
         }
 
         // --- MODAL DELETE ---
