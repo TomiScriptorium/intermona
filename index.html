@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Intermona - Organización Médica</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #f3f4f6;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* Ocultar barra de scroll pero permitir funcionalidad */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* Animaciones suaves */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .calendar-day {
+            aspect-ratio: 1/1;
+        }
+    </style>
+</head>
+<body class="text-gray-800 h-screen flex flex-col overflow-hidden">
+
+    <!-- Header Superior -->
+    <header class="bg-pink-600 text-white p-4 shadow-md flex justify-between items-center z-20">
+        <div class="flex items-center gap-2 cursor-pointer" onclick="renderView('dashboard')">
+            <i class="fa-solid fa-user-doctor text-2xl"></i>
+            <h1 class="text-xl font-bold tracking-wide">Intermona</h1>
+        </div>
+        <button onclick="exportData()" class="text-xs bg-pink-700 px-3 py-1 rounded hover:bg-pink-800 transition" title="Copiar datos al portapapeles">
+            <i class="fa-solid fa-cloud-arrow-down"></i> Backup
+        </button>
+    </header>
+
+    <!-- Contenedor Principal -->
+    <main id="app-container" class="flex-1 overflow-y-auto p-4 pb-24 relative">
+        <!-- El contenido se renderiza dinámicamente aquí -->
+    </main>
+
+    <!-- Navegación Inferior (Estilo App Móvil) -->
+    <nav class="fixed bottom-0 w-full bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.1)] border-t border-gray-100 z-30 pb-safe">
+        <div class="flex justify-around items-center h-16">
+            <button onclick="renderView('dashboard')" class="nav-btn flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-pink-600 focus:text-pink-600 transition-colors" data-target="dashboard">
+                <i class="fa-solid fa-house text-xl mb-1"></i>
+                <span class="text-[10px] font-semibold">Inicio</span>
+            </button>
+            <button onclick="renderView('todo')" class="nav-btn flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-pink-600 focus:text-pink-600 transition-colors" data-target="todo">
+                <i class="fa-solid fa-check-double text-xl mb-1"></i>
+                <span class="text-[10px] font-semibold">Tareas</span>
+            </button>
+            <button onclick="renderView('turnario')" class="nav-btn flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-pink-600 focus:text-pink-600 transition-colors" data-target="turnario">
+                <i class="fa-solid fa-calendar-days text-xl mb-1"></i>
+                <span class="text-[10px] font-semibold">Turnario</span>
+            </button>
+            <button onclick="renderView('notes')" class="nav-btn flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-pink-600 focus:text-pink-600 transition-colors" data-target="notes">
+                <i class="fa-solid fa-sticky-note text-xl mb-1"></i>
+                <span class="text-[10px] font-semibold">Notas</span>
+            </button>
+            <button onclick="renderView('links')" class="nav-btn flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-pink-600 focus:text-pink-600 transition-colors" data-target="links">
+                <i class="fa-solid fa-link text-xl mb-1"></i>
+                <span class="text-[10px] font-semibold">Links</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Modal para el Turnario -->
+    <div id="shift-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 transform transition-all scale-100">
+            <h3 id="modal-date-title" class="text-lg font-bold text-gray-700 mb-4 border-b pb-2">Editar Fecha</h3>
+            
+            <label class="block text-sm font-medium text-gray-600 mb-2">Tipo de Turno:</label>
+            <div class="grid grid-cols-2 gap-2 mb-4">
+                <!-- Se añadieron las clases 'shift-type-btn' y los atributos 'data-type' para identificar la selección -->
+                <button onclick="setShiftType('guardia')" data-type="guardia" class="shift-type-btn p-2 rounded bg-red-100 text-red-700 hover:bg-red-200 border border-red-200 font-semibold text-sm transition-all duration-200">🚨 Guardia 24h</button>
+                <button onclick="setShiftType('dia')" data-type="dia" class="shift-type-btn p-2 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-200 font-semibold text-sm transition-all duration-200">☀️ Turno Día</button>
+                <button onclick="setShiftType('noche')" data-type="noche" class="shift-type-btn p-2 rounded bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border border-indigo-200 font-semibold text-sm transition-all duration-200">🌙 Turno Noche</button>
+                <button onclick="setShiftType('post')" data-type="post" class="shift-type-btn p-2 rounded bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-200 font-semibold text-sm transition-all duration-200">🧟 Post-Guardia</button>
+                <button onclick="setShiftType('libre')" data-type="libre" class="shift-type-btn p-2 rounded bg-green-100 text-green-700 hover:bg-green-200 border border-green-200 font-semibold text-sm transition-all duration-200">🌿 Libre</button>
+                <button onclick="setShiftType(null)" data-type="null" class="shift-type-btn p-2 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200 font-semibold text-sm transition-all duration-200">❌ Borrar</button>
+            </div>
+
+            <label class="block text-sm font-medium text-gray-600 mb-2">Nota del día:</label>
+            <textarea id="modal-note-input" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-pink-500 outline-none text-sm resize-none" rows="3" placeholder="Ej: Examen final, Cumpleaños..."></textarea>
+
+            <div class="flex justify-end mt-4 gap-2">
+                <button onclick="closeModal()" class="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg">Cancelar</button>
+                <button onclick="saveShift()" class="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 shadow-lg">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mensaje Toast -->
+    <div id="toast" class="fixed top-20 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-xl opacity-0 transition-opacity duration-300 pointer-events-none z-50">
+        Mensaje
+    </div>
+
+    <script>
+        // --- ESTADO Y DATOS ---
+        const APP_KEY = 'intermona_data_v1';
+        let state = {
+            view: 'dashboard', // Vista inicial por defecto
+            todos: [],
+            notes: [],
+            links: [],
+            shifts: {}, // Formato: 'YYYY-MM-DD': { type: 'guardia', note: '...' }
+            currentDate: new Date()
+        };
+
+        // --- INICIALIZACIÓN ---
+        function init() {
+            loadData();
+            renderView(state.view);
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem(APP_KEY);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                state = { ...state, ...parsed, currentDate: new Date() }; 
+            } else {
+                // Datos de prueba
+                state.todos = [
+                    { id: 1, text: "Revisar dosis pediatría", done: false },
+                    { id: 2, text: "Firmar evoluciones pendientes", done: true }
+                ];
+                state.links = [
+                    { id: 1, title: "UpToDate", url: "https://www.uptodate.com" },
+                    { id: 2, title: "Calculadora Dosis", url: "https://globalrph.com/medcalcs/" }
+                ];
+            }
+        }
+
+        function saveData() {
+            const toSave = { ...state };
+            delete toSave.currentDate;
+            localStorage.setItem(APP_KEY, JSON.stringify(toSave));
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.remove('opacity-0');
+            setTimeout(() => toast.classList.add('opacity-0'), 2000);
+        }
+
+        function exportData() {
+            const dataStr = localStorage.getItem(APP_KEY);
+            const textArea = document.createElement("textarea");
+            textArea.value = dataStr;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast("✅ Datos copiados. Guárdalos en un archivo de texto.");
+            } catch (err) {
+                showToast("❌ Error al copiar");
+            }
+            document.body.removeChild(textArea);
+        }
+
+        // --- GESTIÓN DE VISTAS ---
+        function renderView(viewName) {
+            state.view = viewName;
+            
+            // Actualizar botones nav
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                if(btn.dataset.target === viewName) {
+                    btn.classList.remove('text-gray-400');
+                    btn.classList.add('text-pink-600');
+                } else {
+                    btn.classList.add('text-gray-400');
+                    btn.classList.remove('text-pink-600');
+                }
+            });
+
+            const container = document.getElementById('app-container');
+            container.innerHTML = ''; // Limpiar
+
+            switch(viewName) {
+                case 'dashboard': renderDashboard(container); break;
+                case 'turnario': renderTurnario(container); break;
+                case 'todo': renderTodo(container); break;
+                case 'notes': renderNotes(container); break;
+                case 'links': renderLinks(container); break;
+            }
+        }
+
+        // --- VISTA: DASHBOARD (Resumen) ---
+        function renderDashboard(container) {
+            const today = new Date();
+            const dateKey = today.toISOString().split('T')[0];
+            
+            // Lógica para determinar qué mostrar (Hoy vs Próximo)
+            let shift = state.shifts[dateKey];
+            let isNextShift = false;
+            let daysUntil = 0;
+            let nextDateStr = "";
+
+            // Si no hay turno hoy, buscar el más cercano en el futuro
+            if (!shift) {
+                const futureDates = Object.keys(state.shifts)
+                    .filter(date => date > dateKey)
+                    .sort(); // Ordenar fechas ascendente
+                
+                if (futureDates.length > 0) {
+                    const nextDateKey = futureDates[0];
+                    shift = state.shifts[nextDateKey]; // Usamos este turno para mostrar
+                    isNextShift = true;
+
+                    // Calcular días faltantes
+                    const date1 = new Date(dateKey);
+                    const date2 = new Date(nextDateKey);
+                    const diffTime = Math.abs(date2 - date1);
+                    daysUntil = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+                    // Formato fecha bonita (ej. "lunes, 8 de diciembre")
+                    // Truco para evitar problemas de zona horaria al parsear: crear fecha con hora local
+                    const [y, m, d] = nextDateKey.split('-').map(Number);
+                    const nextDateObj = new Date(y, m - 1, d); 
+                    nextDateStr = nextDateObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+                }
+            }
+
+            const pendingTodos = state.todos.filter(t => !t.done);
+            const recentNotes = state.notes.slice(0, 2);
+
+            // Obtener saludo
+            const hour = today.getHours();
+            let greeting = "¡Hola!";
+            if (hour < 12) greeting = "Buenos días ☀️";
+            else if (hour < 19) greeting = "Buenas tardes 🌤️";
+            else greeting = "Buenas noches 🌙";
+
+            // Configurar estilos y textos de la tarjeta
+            let shiftCardClass = "bg-white border-gray-200 text-gray-600";
+            let shiftText = "No hay turnos próximos";
+            let shiftIcon = "fa-calendar-xmark"; // Icono por defecto si no hay nada
+            let cardHeader = "Estado de hoy";
+            let cardSubtext = "";
+
+            if (shift) {
+                // Definir base según el tipo
+                if (shift.type === 'guardia') { 
+                    shiftCardClass = "bg-red-500 text-white border-red-600"; 
+                    shiftText = "Guardia 24h"; 
+                    shiftIcon = "fa-bell"; 
+                } else if (shift.type === 'dia') { 
+                    shiftCardClass = "bg-blue-500 text-white border-blue-600"; 
+                    shiftText = "Turno de Día"; 
+                    shiftIcon = "fa-sun"; 
+                } else if (shift.type === 'noche') { 
+                    shiftCardClass = "bg-indigo-600 text-white border-indigo-700"; 
+                    shiftText = "Turno de Noche"; 
+                    shiftIcon = "fa-moon"; 
+                } else if (shift.type === 'post') { 
+                    shiftCardClass = "bg-orange-400 text-white border-orange-500"; 
+                    shiftText = "Post-Guardia"; 
+                    shiftIcon = "fa-bed"; 
+                } else if (shift.type === 'libre') { 
+                    shiftCardClass = "bg-green-500 text-white border-green-600"; 
+                    shiftText = "Día Libre"; 
+                    shiftIcon = "fa-mug-hot"; 
+                }
+
+                // Ajustar textos específicos (Hoy vs Futuro)
+                if (isNextShift) {
+                    cardHeader = `Próximo: ${nextDateStr}`;
+                    // Un pequeño subtítulo si faltan días
+                    if (daysUntil === 1) cardSubtext = " (Mañana)";
+                    else cardSubtext = ` (en ${daysUntil} días)`;
+                    
+                    // Ajuste visual: un poco menos intenso para futuro
+                    if (shift.type !== 'libre') {
+                         // Mantener colores pero quizás indicar que es futuro en el texto
+                         // Ya lo hacemos con el header
+                    }
+                } else {
+                    cardHeader = "Estado de hoy";
+                    if (shift.type === 'guardia') shiftText = "¡Hoy tienes Guardia!";
+                    if (shift.type === 'post') shiftText = "Post-Guardia (¡Descansa!)";
+                }
+            } else {
+                // Caso: No hay nada hoy ni en el futuro registrado
+                shiftText = "Sin turnos asignados";
+                cardHeader = "Calendario Vacío";
+            }
+
+            let html = `
+                <div class="fade-in max-w-lg mx-auto space-y-6">
+                    <!-- Header Saludo -->
+                    <div class="mb-2">
+                        <h2 class="text-2xl font-bold text-gray-800">${greeting}</h2>
+                        <p class="text-sm text-gray-500">${today.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                    </div>
+
+                    <!-- Card Turno -->
+                    <div onclick="renderView('turnario')" class="cursor-pointer p-6 rounded-2xl shadow-lg border ${shiftCardClass} flex items-center justify-between transition-transform transform hover:scale-[1.02]">
+                        <div>
+                            <p class="text-xs font-semibold opacity-80 uppercase tracking-wider mb-1 flex items-center gap-1">
+                                ${isNextShift ? '<i class="fa-solid fa-hourglass-half"></i> ' : ''} 
+                                ${cardHeader} <span class="opacity-100 font-bold">${cardSubtext}</span>
+                            </p>
+                            <h3 class="text-xl font-bold">${shiftText}</h3>
+                            ${shift && shift.note ? `<p class="text-sm mt-2 opacity-90 italic"><i class="fa-solid fa-note-sticky mr-1"></i> "${shift.note}"</p>` : ''}
+                        </div>
+                        <i class="fa-solid ${shiftIcon} text-4xl opacity-50"></i>
+                    </div>
+
+                    <!-- Resumen Pendientes -->
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-gray-700"><i class="fa-solid fa-check-double text-pink-500 mr-2"></i>Pendientes (${pendingTodos.length})</h3>
+                            <button onclick="renderView('todo')" class="text-xs text-pink-600 font-bold hover:underline">Ver todo</button>
+                        </div>
+                        ${pendingTodos.length === 0 
+                            ? `<p class="text-gray-400 text-sm text-center py-2">¡Todo al día! 👏</p>` 
+                            : `<ul class="space-y-2">
+                                ${pendingTodos.slice(0, 3).map(t => `
+                                    <li class="flex items-start gap-2 text-sm text-gray-600 border-b border-gray-50 pb-2 last:border-0">
+                                        <i class="fa-regular fa-square text-gray-300 mt-1"></i>
+                                        <span class="truncate">${t.text}</span>
+                                    </li>
+                                `).join('')}
+                                ${pendingTodos.length > 3 ? `<li class="text-xs text-center text-gray-400 mt-1">+${pendingTodos.length - 3} más...</li>` : ''}
+                               </ul>`
+                        }
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <!-- Botón Notas -->
+                        <div onclick="renderView('notes')" class="bg-yellow-50 p-4 rounded-2xl shadow-sm border border-yellow-100 cursor-pointer hover:bg-yellow-100 transition">
+                            <h3 class="font-bold text-gray-700 text-sm mb-2"><i class="fa-solid fa-sticky-note text-yellow-500 mr-2"></i>Notas</h3>
+                            ${recentNotes.length > 0 
+                                ? `<p class="text-xs text-gray-500 line-clamp-2 italic">"${recentNotes[0].text.substring(0, 40)}..."</p>`
+                                : `<p class="text-xs text-gray-400">Crear nota nueva</p>`
+                            }
+                        </div>
+
+                        <!-- Botón Turnario -->
+                        <div onclick="renderView('turnario')" class="bg-pink-50 p-4 rounded-2xl shadow-sm border border-pink-100 cursor-pointer hover:bg-pink-100 transition">
+                            <h3 class="font-bold text-gray-700 text-sm mb-2"><i class="fa-solid fa-calendar-days text-pink-500 mr-2"></i>Turnario</h3>
+                            <p class="text-xs text-gray-500">Ver mes completo</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        // --- VISTA: TURNARIO (Calendario) ---
+        let selectedDateKey = null;
+        let tempShiftType = null;
+
+        function renderTurnario(container) {
+            const year = state.currentDate.getFullYear();
+            const month = state.currentDate.getMonth();
+            
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const daysInMonth = lastDay.getDate();
+            const startingDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1; // Ajuste para que Lunes sea 0
+
+            const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+            let html = `
+                <div class="fade-in max-w-lg mx-auto">
+                    <div class="flex justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm">
+                        <button onclick="changeMonth(-1)" class="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center text-pink-600"><i class="fa-solid fa-chevron-left"></i></button>
+                        <h2 class="text-xl font-bold text-gray-800">${monthNames[month]} ${year}</h2>
+                        <button onclick="changeMonth(1)" class="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center text-pink-600"><i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+
+                    <div class="grid grid-cols-7 gap-2 mb-2 text-center text-xs font-bold text-gray-400 uppercase tracking-wide">
+                        <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div>
+                    </div>
+
+                    <div class="grid grid-cols-7 gap-2">
+            `;
+
+            // Celdas vacías
+            for (let i = 0; i < startingDay; i++) {
+                html += `<div></div>`;
+            }
+
+            // Días del mes
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const shift = state.shifts[dateKey];
+                
+                let bgClass = "bg-white border-gray-100 text-gray-700";
+                let icon = "";
+                
+                if (shift) {
+                    if (shift.type === 'guardia') { bgClass = "bg-red-100 border-red-200 text-red-700 font-bold shadow-sm"; icon = "🚨"; }
+                    else if (shift.type === 'dia') { bgClass = "bg-blue-100 border-blue-200 text-blue-700 font-bold"; icon = "☀️"; }
+                    else if (shift.type === 'noche') { bgClass = "bg-indigo-100 border-indigo-200 text-indigo-700 font-bold"; icon = "🌙"; }
+                    else if (shift.type === 'post') { bgClass = "bg-orange-100 border-orange-200 text-orange-700"; icon = "🧟"; }
+                    else if (shift.type === 'libre') { bgClass = "bg-green-100 border-green-200 text-green-700"; icon = "🌿"; }
+                }
+
+                // Check si es hoy
+                const todayKey = new Date().toISOString().split('T')[0];
+                const isToday = dateKey === todayKey ? "ring-2 ring-pink-500 ring-offset-2" : "";
+
+                // Indicador de nota
+                const hasNote = shift && shift.note ? `<div class="absolute top-1 right-1 w-2 h-2 bg-yellow-400 rounded-full"></div>` : "";
+
+                html += `
+                    <div onclick="openShiftModal('${dateKey}')" class="relative calendar-day cursor-pointer rounded-xl border flex flex-col items-center justify-center transition-transform active:scale-95 ${bgClass} ${isToday}">
+                        ${hasNote}
+                        <span class="text-sm">${day}</span>
+                        <span class="text-xs mt-1">${icon}</span>
+                    </div>
+                `;
+            }
+
+            html += `</div>
+                <div class="mt-6 p-4 bg-white rounded-xl shadow-sm text-sm text-gray-500">
+                    <p class="font-bold mb-2 text-gray-700">Resumen del Mes:</p>
+                    <div class="flex gap-3 flex-wrap">
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-red-400"></span> Guardias</span>
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-blue-400"></span> Día</span>
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-indigo-400"></span> Noche</span>
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-green-400"></span> Libre</span>
+                    </div>
+                </div>
+            </div>`;
+
+            container.innerHTML = html;
+        }
+
+        function changeMonth(delta) {
+            state.currentDate.setMonth(state.currentDate.getMonth() + delta);
+            renderTurnario(document.getElementById('app-container'));
+        }
+
+        // Lógica Modal Turnario
+        function openShiftModal(dateKey) {
+            selectedDateKey = dateKey;
+            const shift = state.shifts[dateKey];
+            
+            // Llenar datos
+            document.getElementById('modal-date-title').innerText = `Editar: ${dateKey}`;
+            document.getElementById('modal-note-input').value = shift ? (shift.note || '') : '';
+            tempShiftType = shift ? shift.type : null;
+            
+            // UI Selection - Actualizar visualmente cuál está seleccionado al abrir
+            updateShiftTypeUI();
+
+            // Mostrar
+            document.getElementById('shift-modal').classList.remove('hidden');
+        }
+
+        function setShiftType(type) {
+            tempShiftType = type;
+            updateShiftTypeUI(); // Feedback visual inmediato al hacer clic
+        }
+
+        function updateShiftTypeUI() {
+            // Buscar todos los botones de tipo de turno
+            const buttons = document.querySelectorAll('.shift-type-btn');
+            
+            buttons.forEach(btn => {
+                // Limpiar estilos de selección previos
+                btn.classList.remove('ring-4', 'ring-pink-300', 'scale-105', 'z-10');
+                
+                // Obtener el tipo de este botón
+                const btnType = btn.getAttribute('data-type');
+                
+                // Comparar con la selección actual (convertimos a String para manejar el null del botón borrar)
+                if (String(tempShiftType) === btnType) {
+                    btn.classList.add('ring-4', 'ring-pink-300', 'scale-105', 'z-10');
+                }
+            });
+        }
+
+        function closeModal() {
+            document.getElementById('shift-modal').classList.add('hidden');
+        }
+
+        function saveShift() {
+            const note = document.getElementById('modal-note-input').value;
+            
+            if (!tempShiftType && !note) {
+                delete state.shifts[selectedDateKey];
+            } else {
+                state.shifts[selectedDateKey] = {
+                    type: tempShiftType,
+                    note: note
+                };
+            }
+            
+            saveData();
+            closeModal();
+            renderTurnario(document.getElementById('app-container'));
+            showToast("🗓️ Turno actualizado");
+        }
+
+
+        // --- VISTA: TO-DO ---
+        function renderTodo(container) {
+            let html = `
+                <div class="fade-in max-w-lg mx-auto">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Pendientes</h2>
+                    
+                    <div class="flex gap-2 mb-6">
+                        <input type="text" id="new-todo" placeholder="Nueva tarea (ej. Pedir Labs cama 4)" 
+                            class="flex-1 p-3 rounded-xl border border-gray-200 focus:outline-none focus:border-pink-500 shadow-sm"
+                            onkeypress="if(event.key === 'Enter') addTodo()">
+                        <button onclick="addTodo()" class="bg-pink-600 text-white p-3 rounded-xl hover:bg-pink-700 shadow-md">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </div>
+
+                    <ul class="space-y-3">
+            `;
+
+            if (state.todos.length === 0) {
+                html += `<li class="text-center text-gray-400 py-8">¡Todo listo! No hay pendientes. 🎉</li>`;
+            }
+
+            // Ordenar: No completadas primero
+            const sortedTodos = [...state.todos].sort((a,b) => a.done - b.done);
+
+            sortedTodos.forEach(todo => {
+                const bg = todo.done ? 'bg-gray-100' : 'bg-white';
+                const text = todo.done ? 'text-gray-400 line-through' : 'text-gray-700';
+                const icon = todo.done ? 'fa-regular fa-square-check' : 'fa-regular fa-square';
+                
+                html += `
+                    <li class="flex items-center gap-3 p-4 rounded-xl shadow-sm border border-gray-100 ${bg} transition-all">
+                        <button onclick="toggleTodo(${todo.id})" class="text-xl text-pink-600 focus:outline-none">
+                            <i class="${icon}"></i>
+                        </button>
+                        <span class="flex-1 ${text}">${todo.text}</span>
+                        <button onclick="deleteTodo(${todo.id})" class="text-gray-400 hover:text-red-500 px-2">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </li>
+                `;
+            });
+
+            html += `</ul></div>`;
+            container.innerHTML = html;
+        }
+
+        function addTodo() {
+            const input = document.getElementById('new-todo');
+            const text = input.value.trim();
+            if (!text) return;
+
+            state.todos.push({ id: Date.now(), text, done: false });
+            saveData();
+            input.value = '';
+            renderTodo(document.getElementById('app-container'));
+        }
+
+        function toggleTodo(id) {
+            const todo = state.todos.find(t => t.id === id);
+            if (todo) {
+                todo.done = !todo.done;
+                saveData();
+                renderTodo(document.getElementById('app-container'));
+            }
+        }
+
+        function deleteTodo(id) {
+            state.todos = state.todos.filter(t => t.id !== id);
+            saveData();
+            renderTodo(document.getElementById('app-container'));
+        }
+
+
+        // --- VISTA: NOTAS ---
+        function renderNotes(container) {
+            let html = `
+                <div class="fade-in max-w-lg mx-auto">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Notas Rápidas</h2>
+                    
+                    <div class="bg-white p-4 rounded-xl shadow-sm mb-6 border border-gray-100">
+                        <textarea id="new-note-text" class="w-full p-2 border-b border-gray-100 focus:outline-none resize-none mb-2" rows="3" placeholder="Escribe algo aquí..."></textarea>
+                        
+                        <!-- Previsualización de imagen -->
+                        <div id="image-preview-container" class="hidden mb-3 relative">
+                            <img id="image-preview" class="h-32 rounded-lg border border-gray-200 object-cover">
+                            <button onclick="clearImageInput()" class="absolute top-1 left-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-md">
+                                <i class="fa-solid fa-times text-xs"></i>
+                            </button>
+                        </div>
+
+                        <div class="flex justify-between items-center mt-2">
+                            <label class="cursor-pointer text-pink-600 hover:bg-pink-50 p-2 rounded-lg transition flex items-center gap-2">
+                                <i class="fa-solid fa-camera text-xl"></i>
+                                <span class="text-xs font-semibold">Foto</span>
+                                <input type="file" id="new-note-image" accept="image/*" class="hidden" onchange="previewImage(this)">
+                            </label>
+                            <button onclick="addNote()" class="bg-pink-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-pink-700 shadow-md">Guardar Nota</button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-4">
+            `;
+
+            state.notes.forEach(note => {
+                const imageHtml = note.image ? `<img src="${note.image}" class="w-full h-auto rounded-lg mb-3 border border-gray-200" loading="lazy">` : '';
+                
+                html += `
+                    <div class="bg-yellow-50 p-4 rounded-xl shadow-sm border border-yellow-100 relative group">
+                        ${imageHtml}
+                        <p class="text-gray-800 whitespace-pre-wrap font-handwriting text-sm leading-relaxed">${note.text}</p>
+                        <div class="text-xs text-gray-400 mt-3 flex justify-between items-center">
+                            <span>${new Date(note.id).toLocaleDateString()}</span>
+                            <button onclick="deleteNote(${note.id})" class="text-red-400 hover:text-red-600 bg-white rounded-full w-6 h-6 shadow-sm flex items-center justify-center">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `</div></div>`;
+            container.innerHTML = html;
+        }
+
+        // Función para procesar y comprimir la imagen
+        function processImage(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        
+                        // Redimensionar (Max ancho 600px para ahorrar espacio)
+                        const MAX_WIDTH = 600;
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        // Comprimir a JPEG calidad 0.7
+                        resolve(canvas.toDataURL('image/jpeg', 0.7));
+                    };
+                    img.onerror = reject;
+                };
+                reader.onerror = reject;
+            });
+        }
+
+        function previewImage(input) {
+            const previewContainer = document.getElementById('image-preview-container');
+            const previewImg = document.getElementById('image-preview');
+            
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImg.src = e.target.result;
+                    previewContainer.classList.remove('hidden');
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function clearImageInput() {
+            document.getElementById('new-note-image').value = '';
+            document.getElementById('image-preview-container').classList.add('hidden');
+        }
+
+        async function addNote() {
+            const textInput = document.getElementById('new-note-text');
+            const fileInput = document.getElementById('new-note-image');
+            const text = textInput.value.trim();
+            const file = fileInput.files[0];
+
+            if (!text && !file) {
+                showToast("❌ Escribe algo o sube una foto");
+                return;
+            }
+
+            let imageData = null;
+            if (file) {
+                showToast("⏳ Procesando imagen...");
+                try {
+                    imageData = await processImage(file);
+                } catch (e) {
+                    showToast("❌ Error al procesar imagen");
+                    return;
+                }
+            }
+
+            state.notes.unshift({ id: Date.now(), text, image: imageData }); // Agregar al principio
+            saveData();
+            renderNotes(document.getElementById('app-container'));
+            showToast("✅ Nota guardada");
+        }
+
+        function deleteNote(id) {
+            if(confirm("¿Borrar nota?")) {
+                state.notes = state.notes.filter(n => n.id !== id);
+                saveData();
+                renderNotes(document.getElementById('app-container'));
+            }
+        }
+
+
+        // --- VISTA: LINKS ---
+        function renderLinks(container) {
+            let html = `
+                <div class="fade-in max-w-lg mx-auto">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Links & Recursos</h2>
+                    
+                    <div class="bg-white p-4 rounded-xl shadow-sm mb-6 border border-gray-100 flex flex-col gap-3">
+                        <input type="text" id="link-title" placeholder="Título (ej. Calculadora)" class="p-2 border rounded-lg text-sm">
+                        <input type="url" id="link-url" placeholder="URL (https://...)" class="p-2 border rounded-lg text-sm">
+                        <button onclick="addLink()" class="bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700">Añadir Recurso</button>
+                    </div>
+
+                    <div class="space-y-3">
+            `;
+
+            state.links.forEach(link => {
+                // Obtener favicon simple
+                const favicon = `https://www.google.com/s2/favicons?domain=${link.url}&sz=64`;
+                
+                html += `
+                    <div class="flex items-center bg-white p-3 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition">
+                        <img src="${favicon}" class="w-8 h-8 rounded bg-gray-100 p-1 mr-3" onerror="this.src='https://via.placeholder.com/32'">
+                        <a href="${link.url}" target="_blank" class="flex-1 text-pink-700 font-semibold truncate hover:underline">
+                            ${link.title}
+                        </a>
+                        <button onclick="deleteLink(${link.id})" class="text-gray-300 hover:text-red-500 ml-2 px-2">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+            });
+
+            html += `</div></div>`;
+            container.innerHTML = html;
+        }
+
+        function addLink() {
+            const titleInput = document.getElementById('link-title');
+            const urlInput = document.getElementById('link-url');
+            
+            const title = titleInput.value.trim();
+            let url = urlInput.value.trim();
+
+            if (!title || !url) return;
+
+            if (!url.startsWith('http')) {
+                url = 'https://' + url;
+            }
+
+            state.links.push({ id: Date.now(), title, url });
+            saveData();
+            renderLinks(document.getElementById('app-container'));
+        }
+
+        function deleteLink(id) {
+            state.links = state.links.filter(l => l.id !== id);
+            saveData();
+            renderLinks(document.getElementById('app-container'));
+        }
+
+        // Arrancar
+        init();
+
+    </script>
+</body>
+</html>
