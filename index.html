@@ -87,10 +87,8 @@
         </button>
     </header>
 
-    <!-- Main Container -->
-    <main id="app-container" class="flex-1 overflow-y-auto p-4 pb-24 relative bg-gray-50 scroll-smooth">
-        <!-- Renderizado dinámico -->
-    </main>
+    <!-- Main Container (VACÍO PARA EVITAR ERRORES DE CARGA) -->
+    <main id="app-container" class="flex-1 overflow-y-auto p-4 pb-24 relative bg-gray-50 scroll-smooth"></main>
 
     <!-- Nav Bar -->
     <nav class="fixed bottom-0 w-full bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.05)] border-t border-gray-100 z-30 pb-safe">
@@ -204,7 +202,11 @@
 
         function init() {
             loadData();
-            renderView(state.view);
+            // --- FIX CRÍTICO: FORZAR ESTADO INICIAL ---
+            // 1. Reseteamos el estado de vista a nulo para engañar al sistema de optimización
+            state.view = null; 
+            // 2. Renderizamos 'dashboard' explícitamente
+            renderView('dashboard');
         }
 
         function loadData() {
@@ -212,8 +214,16 @@
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
+                    if (!parsed.todos) parsed.todos = [];
+                    if (!parsed.notes) parsed.notes = [];
+                    if (!parsed.links) parsed.links = [];
+                    if (!parsed.folders) parsed.folders = [{id: 'general', name: 'General'}];
+                    
                     state = { ...state, ...parsed, currentDate: new Date() }; 
-                } catch (e) { console.error("Error data", e); }
+                } catch (e) { 
+                    console.error("Error cargando datos, reiniciando...", e);
+                    state.folders = [{id: 'general', name: 'General'}];
+                }
             } else {
                 state.folders = [{id: 'general', name: 'General'}];
                 state.todos = [{ id: 1, text: "Bienvenido a Intermona", done: false }];
@@ -225,6 +235,7 @@
             const toSave = { ...state };
             delete toSave.currentDate; 
             delete toSave.editingNoteId; 
+            // Importante: No guardamos state.view para que no afecte futuros reinicios si decidimos usarlo
             localStorage.setItem(APP_KEY, JSON.stringify(toSave));
         }
 
@@ -258,13 +269,19 @@
 
         // --- SISTEMA DE NAVEGACIÓN FLUIDA ---
         function renderView(viewName) {
-            if (state.view === viewName && document.getElementById('app-container').hasChildNodes()) {
+            const container = document.getElementById('app-container');
+            
+            // --- FIX DE LA PANTALLA EN BLANCO ---
+            // Solo evitamos el render si el estado es IGUAL y el contenedor TIENE NODOS REALES (elementos)
+            // childElementCount es más seguro que hasChildNodes porque ignora espacios en blanco
+            if (state.view === viewName && container.childElementCount > 0) {
                 return; 
             }
 
             state.view = viewName;
             state.editingNoteId = null; 
             
+            // Actualizar Nav Bar (Visual)
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 const icon = btn.querySelector('i');
                 if(btn.dataset.target === viewName) {
@@ -278,14 +295,19 @@
                 }
             });
 
-            const container = document.getElementById('app-container');
             let contentHTML = '';
-            switch(viewName) {
-                case 'dashboard': contentHTML = getDashboardHTML(); break;
-                case 'turnario': contentHTML = getTurnarioHTML(); break;
-                case 'todo': contentHTML = getTodoHTML(); break;
-                case 'notes': contentHTML = getNotesHTML(); break;
-                case 'links': contentHTML = getLinksHTML(); break;
+            try {
+                switch(viewName) {
+                    case 'dashboard': contentHTML = getDashboardHTML(); break;
+                    case 'turnario': contentHTML = getTurnarioHTML(); break;
+                    case 'todo': contentHTML = getTodoHTML(); break;
+                    case 'notes': contentHTML = getNotesHTML(); break;
+                    case 'links': contentHTML = getLinksHTML(); break;
+                    default: contentHTML = getDashboardHTML(); 
+                }
+            } catch (e) {
+                console.error("Error renderizando vista:", e);
+                contentHTML = `<div class="p-8 text-center text-red-400"><i class="fa-solid fa-bug text-4xl mb-2"></i><br>Algo salió mal.<br><button onclick="localStorage.clear(); location.reload()" class="underline mt-2">Reiniciar App</button></div>`;
             }
 
             const wrapper = document.createElement('div');
@@ -312,7 +334,6 @@
             let daysUntil = 0;
             let nextDateStr = "";
 
-            // Lógica Turno Principal
             if (!shift) {
                 const futureDates = Object.keys(state.shifts).filter(date => date > dateKey).sort();
                 if (futureDates.length > 0) {
@@ -326,13 +347,11 @@
                 }
             }
 
-            // Lógica Próximo Evento (Recordatorio)
+            // Lógica Próximo Evento
             let nextEvent = null;
             const sortedDates = Object.keys(state.shifts).sort();
             for (const d of sortedDates) {
-                // Buscar desde hoy en adelante, que tenga hora Y nota
                 if (d >= dateKey && state.shifts[d].eventTime && state.shifts[d].note) {
-                    // Si es hoy, verificar que la hora no haya pasado (opcional, por ahora mostramos todo evento de hoy)
                     nextEvent = { date: d, ...state.shifts[d] };
                     break; 
                 }
@@ -346,7 +365,7 @@
                 const eventDateStr = eventDateObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' });
                 
                 reminderHTML = `
-                    <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl shadow-sm flex items-start gap-3 relative overflow-hidden">
+                    <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl shadow-sm flex items-start gap-3 relative overflow-hidden mb-4">
                         <div class="bg-indigo-100 text-indigo-600 w-10 h-10 rounded-full flex items-center justify-center shrink-0">
                             <i class="fa-solid fa-clock"></i>
                         </div>
@@ -362,9 +381,9 @@
                 `;
             }
 
-            const pendingTodos = state.todos.filter(t => !t.done);
+            const pendingTodos = (state.todos || []).filter(t => !t.done);
             
-            // Saludos Románticos
+            // Saludos
             const lovePhrases = [
                 "Eres la más monita 🐵🩷", "Te amo popii", "Serás la mejor intermona 🩷",
                 "Pop pop pop pop", "Eres el amor de mi vida", "Ahora mismo estoy pensando en ti 💘",
@@ -417,7 +436,6 @@
                         <i class="fa-solid ${shiftIcon} text-6xl absolute -right-2 -bottom-4 ${cardIconColor} transform -rotate-12"></i>
                     </div>
 
-                    <!-- AQUÍ SE INSERTA EL RECORDATORIO -->
                     ${reminderHTML}
 
                     <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
@@ -593,7 +611,7 @@
                 <button onclick="changeFolder('all')" class="folder-btn whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all ${state.currentFolderId === 'all' ? 'bg-gray-800 text-white shadow-md' : 'bg-white text-gray-500 border border-gray-200'}" data-id="all">
                     Todas
                 </button>
-                ${state.folders.map(f => `
+                ${(state.folders || []).map(f => `
                     <button onclick="changeFolder('${f.id}')" class="folder-btn whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all ${state.currentFolderId === f.id ? 'bg-pink-600 text-white shadow-md' : 'bg-white text-gray-500 border border-gray-200'}" data-id="${f.id}">
                         ${f.name}
                     </button>
@@ -605,9 +623,9 @@
         }
 
         function generateNotesListHTML() {
-            let filteredNotes = state.notes;
+            let filteredNotes = state.notes || [];
             if (state.currentFolderId !== 'all') {
-                filteredNotes = state.notes.filter(n => n.folderId === state.currentFolderId);
+                filteredNotes = filteredNotes.filter(n => n.folderId === state.currentFolderId);
             }
             if (filteredNotes.length === 0) return `<div class="text-center text-gray-400 text-sm mt-10 italic flex flex-col items-center"><i class="fa-regular fa-folder-open text-3xl mb-2 opacity-50"></i>Carpeta vacía</div>`;
             return filteredNotes.map(n => createNoteHTML(n)).join('');
@@ -615,7 +633,7 @@
 
         function createNoteHTML(note) {
             const img = note.image ? `<img src="${note.image}" class="w-full h-auto rounded-lg mb-3 border border-black/5">` : '';
-            const folderName = state.folders.find(f => f.id === note.folderId)?.name || 'General';
+            const folderName = (state.folders || []).find(f => f.id === note.folderId)?.name || 'General';
             
             return `
                 <div id="note-${note.id}" class="bg-yellow-50 p-5 rounded-xl shadow-sm border border-yellow-200/60 relative group item-enter hover:shadow-md transition-shadow">
