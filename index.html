@@ -36,7 +36,8 @@
         }
 
         body {
-            font-family: 'Nunito', sans-serif;
+            /* CAMBIO: Fuente global a Patrick Hand (estilo notas) */
+            font-family: 'Patrick Hand', cursive;
             background-color: #f8fafc; /* Gris muy suave, clínico */
             /* Patrón de papel milimetrado sutil */
             background-image: 
@@ -44,9 +45,12 @@
                 linear-gradient(90deg, #e5e7eb 1px, transparent 1px);
             background-size: 20px 20px;
             -webkit-tap-highlight-color: transparent;
+            /* Aumentamos un poco el tamaño base porque la letra manuscrita suele ser más pequeña visualmente */
+            font-size: 1.1rem; 
         }
         
-        .font-handwriting {
+        /* Ajuste específico para inputs para que se vean bien con la fuente manuscrita */
+        input, textarea, button, select {
             font-family: 'Patrick Hand', cursive;
         }
 
@@ -132,13 +136,13 @@
                     <i class="fa-solid fa-user-md text-xl"></i>
                 </div>
                 <div>
-                    <h1 class="text-lg font-bold tracking-wide flex items-center gap-2">
+                    <h1 class="text-2xl font-bold tracking-wide flex items-center gap-2">
                         Dra. Intermona <span class="ecg-line"></span>
                     </h1>
-                    <p class="text-[10px] text-pink-100 uppercase tracking-widest font-semibold">Sistema Médico Personal</p>
+                    <p class="text-xs text-pink-100 uppercase tracking-widest font-bold">Sistema Médico Personal</p>
                 </div>
             </div>
-            <button onclick="openBackupModal()" class="text-xs bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-full backdrop-blur-md transition shadow-sm border border-white/20 active:scale-95 flex items-center gap-1.5">
+            <button onclick="openBackupModal()" class="text-sm bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-full backdrop-blur-md transition shadow-sm border border-white/20 active:scale-95 flex items-center gap-1.5">
                 <i class="fa-solid fa-database"></i> <span class="hidden sm:inline">Datos</span>
             </button>
         </div>
@@ -153,28 +157,28 @@
         <nav class="bg-white mx-4 mb-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 p-2 pointer-events-auto flex justify-around items-center">
             <button onclick="renderView('dashboard')" class="nav-btn group relative p-2 w-full flex flex-col items-center gap-1 rounded-xl hover:bg-pink-50 transition-colors" data-target="dashboard">
                 <div class="w-1 h-1 bg-pink-500 rounded-full opacity-0 group-[.active]:opacity-100 absolute top-1 transition-opacity"></div>
-                <i class="fa-solid fa-hospital-user text-xl mb-0.5 text-gray-400 group-[.active]:text-pink-500 transition-colors"></i>
-                <span class="text-[9px] font-bold text-gray-400 group-[.active]:text-pink-600 uppercase">Inicio</span>
+                <i class="fa-solid fa-hospital-user text-2xl mb-0.5 text-gray-400 group-[.active]:text-pink-500 transition-colors"></i>
+                <span class="text-[11px] font-bold text-gray-400 group-[.active]:text-pink-600 uppercase tracking-wide">Inicio</span>
             </button>
             <button onclick="renderView('todo')" class="nav-btn group relative p-2 w-full flex flex-col items-center gap-1 rounded-xl hover:bg-pink-50 transition-colors" data-target="todo">
                 <div class="w-1 h-1 bg-pink-500 rounded-full opacity-0 group-[.active]:opacity-100 absolute top-1 transition-opacity"></div>
-                <i class="fa-solid fa-clipboard-check text-xl mb-0.5 text-gray-400 group-[.active]:text-pink-500 transition-colors"></i>
-                <span class="text-[9px] font-bold text-gray-400 group-[.active]:text-pink-600 uppercase">Ronda</span>
+                <i class="fa-solid fa-clipboard-check text-2xl mb-0.5 text-gray-400 group-[.active]:text-pink-500 transition-colors"></i>
+                <span class="text-[11px] font-bold text-gray-400 group-[.active]:text-pink-600 uppercase tracking-wide">Ronda</span>
             </button>
             <button onclick="renderView('turnario')" class="nav-btn group relative p-2 w-full flex flex-col items-center gap-1 rounded-xl hover:bg-pink-50 transition-colors" data-target="turnario">
                 <div class="w-1 h-1 bg-pink-500 rounded-full opacity-0 group-[.active]:opacity-100 absolute top-1 transition-opacity"></div>
-                <i class="fa-solid fa-calendar-heart text-xl mb-0.5 text-gray-400 group-[.active]:text-pink-500 transition-colors"></i>
-                <span class="text-[9px] font-bold text-gray-400 group-[.active]:text-pink-600 uppercase">Calendario</span>
+                <i class="fa-solid fa-calendar-heart text-2xl mb-0.5 text-gray-400 group-[.active]:text-pink-500 transition-colors"></i>
+                <span class="text-[11px] font-bold text-gray-400 group-[.active]:text-pink-600 uppercase tracking-wide">Calendario</span>
             </button>
             <button onclick="renderView('notes')" class="nav-btn group relative p-2 w-full flex flex-col items-center gap-1 rounded-xl hover:bg-pink-50 transition-colors" data-target="notes">
                 <div class="w-1 h-1 bg-pink-500 rounded-full opacity-0 group-[.active]:opacity-100 absolute top-1 transition-opacity"></div>
-                <i class="fa-solid fa-file-prescription text-xl mb-0.5 text-gray-400 group-[.active]:text-pink-500 transition-colors"></i>
-                <span class="text-[9px] font-bold text-gray-400 group-[.active]:text-pink-600 uppercase">Notas</span>
+                <i class="fa-solid fa-file-prescription text-2xl mb-0.5 text-gray-400 group-[.active]:text-pink-500 transition-colors"></i>
+                <span class="text-[11px] font-bold text-gray-400 group-[.active]:text-pink-600 uppercase tracking-wide">Notas</span>
             </button>
             <button onclick="renderView('links')" class="nav-btn group relative p-2 w-full flex flex-col items-center gap-1 rounded-xl hover:bg-pink-50 transition-colors" data-target="links">
                 <div class="w-1 h-1 bg-pink-500 rounded-full opacity-0 group-[.active]:opacity-100 absolute top-1 transition-opacity"></div>
-                <i class="fa-solid fa-book-medical text-xl mb-0.5 text-gray-400 group-[.active]:text-pink-500 transition-colors"></i>
-                <span class="text-[9px] font-bold text-gray-400 group-[.active]:text-pink-600 uppercase">Info</span>
+                <i class="fa-solid fa-book-medical text-2xl mb-0.5 text-gray-400 group-[.active]:text-pink-500 transition-colors"></i>
+                <span class="text-[11px] font-bold text-gray-400 group-[.active]:text-pink-600 uppercase tracking-wide">Info</span>
             </button>
         </nav>
     </div>
@@ -183,30 +187,30 @@
     <div id="shift-modal" class="hidden fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-0 overflow-hidden transform transition-all scale-100 border-t-4 border-pink-500">
             <div class="bg-pink-50 p-4 border-b border-pink-100 flex justify-between items-center">
-                <h3 id="modal-date-title" class="text-lg font-bold text-pink-700">Editar Fecha</h3>
+                <h3 id="modal-date-title" class="text-xl font-bold text-pink-700">Editar Fecha</h3>
                 <button onclick="closeModal()" class="w-8 h-8 rounded-full bg-white text-pink-400 flex items-center justify-center hover:bg-pink-100 transition"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
             <div class="p-6">
-                <label class="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider flex items-center gap-2"><i class="fa-solid fa-stethoscope"></i> Tipo de Asignación:</label>
+                <label class="block text-sm font-bold text-gray-400 mb-3 uppercase tracking-wider flex items-center gap-2"><i class="fa-solid fa-stethoscope"></i> Tipo de Asignación:</label>
                 <div class="grid grid-cols-2 gap-3 mb-6">
-                    <button onclick="setShiftType('guardia')" data-type="guardia" class="shift-type-btn p-3 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-red-400 hover:text-red-500 font-bold text-xs transition-all flex flex-col items-center gap-2 shadow-sm">
+                    <button onclick="setShiftType('guardia')" data-type="guardia" class="shift-type-btn p-3 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-red-400 hover:text-red-500 font-bold text-sm transition-all flex flex-col items-center gap-2 shadow-sm">
                         <i class="fa-solid fa-user-doctor text-xl"></i> Paso
                     </button>
-                    <button onclick="setShiftType('dia')" data-type="dia" class="shift-type-btn p-3 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-blue-400 hover:text-blue-500 font-bold text-xs transition-all flex flex-col items-center gap-2 shadow-sm">
+                    <button onclick="setShiftType('dia')" data-type="dia" class="shift-type-btn p-3 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-blue-400 hover:text-blue-500 font-bold text-sm transition-all flex flex-col items-center gap-2 shadow-sm">
                         <i class="fa-solid fa-sun text-xl"></i> Turno Día
                     </button>
-                    <button onclick="setShiftType('noche')" data-type="noche" class="shift-type-btn p-3 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-indigo-400 hover:text-indigo-500 font-bold text-xs transition-all flex flex-col items-center gap-2 shadow-sm">
+                    <button onclick="setShiftType('noche')" data-type="noche" class="shift-type-btn p-3 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-indigo-400 hover:text-indigo-500 font-bold text-sm transition-all flex flex-col items-center gap-2 shadow-sm">
                         <i class="fa-solid fa-moon text-xl"></i> Turno Noche
                     </button>
-                    <button onclick="setShiftType('post')" data-type="post" class="shift-type-btn p-3 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-orange-400 hover:text-orange-500 font-bold text-xs transition-all flex flex-col items-center gap-2 shadow-sm">
+                    <button onclick="setShiftType('post')" data-type="post" class="shift-type-btn p-3 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-orange-400 hover:text-orange-500 font-bold text-sm transition-all flex flex-col items-center gap-2 shadow-sm">
                         <i class="fa-solid fa-book-open text-xl"></i> Día de Estudio
                     </button>
-                    <button onclick="setShiftType('libre')" data-type="libre" class="shift-type-btn p-3 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-green-400 hover:text-green-500 font-bold text-xs transition-all flex flex-col items-center gap-2 shadow-sm">
+                    <button onclick="setShiftType('libre')" data-type="libre" class="shift-type-btn p-3 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-green-400 hover:text-green-500 font-bold text-sm transition-all flex flex-col items-center gap-2 shadow-sm">
                         <i class="fa-solid fa-mug-hot text-xl"></i> Libre
                     </button>
                     <!-- Eliminado botón "Limpiar" redundante de la grilla, ahora hay un botón Eliminar abajo -->
-                    <button onclick="setShiftType(null)" data-type="null" class="shift-type-btn p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:bg-slate-100 hover:text-slate-600 font-bold text-xs transition-all flex flex-col items-center gap-2 shadow-sm">
+                    <button onclick="setShiftType(null)" data-type="null" class="shift-type-btn p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:bg-slate-100 hover:text-slate-600 font-bold text-sm transition-all flex flex-col items-center gap-2 shadow-sm">
                          <i class="fa-solid fa-eraser text-xl"></i> Ninguno
                     </button>
                 </div>
@@ -214,19 +218,19 @@
                 <div class="space-y-4">
                     <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center gap-3">
                          <i class="fa-regular fa-clock text-slate-400"></i>
-                        <input type="time" id="modal-event-time" class="bg-transparent w-full text-sm font-bold text-slate-700 focus:outline-none">
+                        <input type="time" id="modal-event-time" class="bg-transparent w-full text-lg font-bold text-slate-700 focus:outline-none">
                     </div>
                     <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center gap-3">
                          <i class="fa-solid fa-pen-to-square text-slate-400"></i>
-                        <input type="text" id="modal-note-input" class="bg-transparent w-full text-sm font-semibold text-slate-700 focus:outline-none placeholder-slate-400" placeholder="Anotación clínica / Evento...">
+                        <input type="text" id="modal-note-input" class="bg-transparent w-full text-lg font-semibold text-slate-700 focus:outline-none placeholder-slate-400" placeholder="Anotación clínica / Evento...">
                     </div>
                 </div>
 
                 <div class="flex justify-between items-center mt-6 gap-3">
                     <!-- NUEVO BOTÓN ELIMINAR -->
-                    <button onclick="deleteCurrentShift()" class="px-4 py-3 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl font-bold text-sm transition-colors" title="Borrar todo el evento"><i class="fa-solid fa-trash-can"></i></button>
+                    <button onclick="deleteCurrentShift()" class="px-4 py-3 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl font-bold text-lg transition-colors" title="Borrar todo el evento"><i class="fa-solid fa-trash-can"></i></button>
                     
-                    <button onclick="saveShift()" class="flex-1 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 shadow-lg shadow-pink-200 transform active:scale-95 transition-all font-bold tracking-wide">
+                    <button onclick="saveShift()" class="flex-1 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 shadow-lg shadow-pink-200 transform active:scale-95 transition-all font-bold tracking-wide text-lg">
                         <i class="fa-solid fa-floppy-disk mr-2"></i> Guardar Ficha
                     </button>
                 </div>
@@ -240,11 +244,11 @@
             <div class="w-14 h-14 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-red-100">
                 <i class="fa-solid fa-triangle-exclamation text-xl"></i>
             </div>
-            <h3 class="text-lg font-bold text-slate-800 mb-2">¿Confirmar acción?</h3>
-            <p id="confirm-message" class="text-sm text-slate-500 mb-6">Esta acción es irreversible.</p>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">¿Confirmar acción?</h3>
+            <p id="confirm-message" class="text-lg text-slate-500 mb-6">Esta acción es irreversible.</p>
             <div class="flex justify-center gap-3">
-                <button onclick="closeConfirmModal()" class="px-5 py-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 font-bold text-sm">Cancelar</button>
-                <button id="confirm-btn-action" class="px-5 py-2.5 bg-red-500 text-white rounded-xl hover:bg-red-600 font-bold text-sm shadow-md shadow-red-200">Confirmar</button>
+                <button onclick="closeConfirmModal()" class="px-5 py-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 font-bold text-lg">Cancelar</button>
+                <button id="confirm-btn-action" class="px-5 py-2.5 bg-red-500 text-white rounded-xl hover:bg-red-600 font-bold text-lg shadow-md shadow-red-200">Confirmar</button>
             </div>
         </div>
     </div>
@@ -252,11 +256,11 @@
     <!-- Modal Carpeta -->
     <div id="folder-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-xs p-6">
-            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-folder-plus text-pink-500"></i> Nueva Categoría</h3>
-            <input type="text" id="new-folder-name" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl mb-4 focus:ring-2 focus:ring-pink-500 outline-none text-sm font-semibold" placeholder="Ej: Cardiología, Pediatría...">
+            <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-folder-plus text-pink-500"></i> Nueva Categoría</h3>
+            <input type="text" id="new-folder-name" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl mb-4 focus:ring-2 focus:ring-pink-500 outline-none text-lg font-semibold" placeholder="Ej: Cardiología, Pediatría...">
             <div class="flex justify-end gap-3">
-                <button onclick="closeFolderModal()" class="px-4 py-2 text-slate-400 hover:text-slate-600 font-bold text-sm">Cancelar</button>
-                <button onclick="createFolder()" class="px-4 py-2 bg-pink-500 text-white rounded-xl hover:bg-pink-600 font-bold text-sm shadow-lg shadow-pink-200">Crear</button>
+                <button onclick="closeFolderModal()" class="px-4 py-2 text-slate-400 hover:text-slate-600 font-bold text-lg">Cancelar</button>
+                <button onclick="createFolder()" class="px-4 py-2 bg-pink-500 text-white rounded-xl hover:bg-pink-600 font-bold text-lg shadow-lg shadow-pink-200">Crear</button>
             </div>
         </div>
     </div>
@@ -264,12 +268,12 @@
     <!-- Modal Editar Nombre (NUEVO) -->
     <div id="name-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-xs p-6">
-            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-id-card text-pink-500"></i> Editar Nombre</h3>
-            <p class="text-xs text-slate-400 mb-3">¿Cómo quieres que te llame la app?</p>
-            <input type="text" id="new-user-name" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl mb-4 focus:ring-2 focus:ring-pink-500 outline-none text-sm font-semibold text-slate-700" placeholder="Ej: Dra. García">
+            <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-id-card text-pink-500"></i> Editar Nombre</h3>
+            <p class="text-sm text-slate-400 mb-3">¿Cómo quieres que te llame la app?</p>
+            <input type="text" id="new-user-name" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl mb-4 focus:ring-2 focus:ring-pink-500 outline-none text-lg font-semibold text-slate-700" placeholder="Ej: Dra. García">
             <div class="flex justify-end gap-3">
-                <button onclick="closeNameModal()" class="px-4 py-2 text-slate-400 hover:text-slate-600 font-bold text-sm">Cancelar</button>
-                <button onclick="saveName()" class="px-4 py-2 bg-pink-500 text-white rounded-xl hover:bg-pink-600 font-bold text-sm shadow-lg shadow-pink-200">Guardar</button>
+                <button onclick="closeNameModal()" class="px-4 py-2 text-slate-400 hover:text-slate-600 font-bold text-lg">Cancelar</button>
+                <button onclick="saveName()" class="px-4 py-2 bg-pink-500 text-white rounded-xl hover:bg-pink-600 font-bold text-lg shadow-lg shadow-pink-200">Guardar</button>
             </div>
         </div>
     </div>
@@ -277,17 +281,17 @@
     <!-- Modal Nuevo Paciente (NUEVO) -->
     <div id="patient-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 border-t-4 border-blue-400">
-            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-user-injured text-blue-500"></i> Ingresar Paciente</h3>
+            <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-user-injured text-blue-500"></i> Ingresar Paciente</h3>
             <div class="space-y-3">
-                <input type="text" id="patient-name" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none text-sm font-semibold" placeholder="Nombre del Paciente">
+                <input type="text" id="patient-name" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none text-lg font-semibold" placeholder="Nombre del Paciente">
                 <div class="flex gap-3">
-                    <input type="text" id="patient-room" class="w-1/3 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none text-sm font-semibold" placeholder="Cama/Hab">
-                    <input type="text" id="patient-dx" class="w-2/3 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none text-sm font-semibold" placeholder="Diagnóstico (Breve)">
+                    <input type="text" id="patient-room" class="w-1/3 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none text-lg font-semibold" placeholder="Cama/Hab">
+                    <input type="text" id="patient-dx" class="w-2/3 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none text-lg font-semibold" placeholder="Diagnóstico (Breve)">
                 </div>
             </div>
             <div class="flex justify-end gap-3 mt-6">
-                <button onclick="closePatientModal()" class="px-4 py-2 text-slate-400 hover:text-slate-600 font-bold text-sm">Cancelar</button>
-                <button onclick="createPatient()" class="px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 font-bold text-sm shadow-lg shadow-blue-200">Ingresar</button>
+                <button onclick="closePatientModal()" class="px-4 py-2 text-slate-400 hover:text-slate-600 font-bold text-lg">Cancelar</button>
+                <button onclick="createPatient()" class="px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 font-bold text-lg shadow-lg shadow-blue-200">Ingresar</button>
             </div>
         </div>
     </div>
@@ -295,23 +299,23 @@
     <!-- Modal Backup (Para Importar/Exportar) - ACTUALIZADO A ZIP -->
     <div id="backup-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-database text-pink-500"></i> Gestión de Datos</h3>
-            <p class="text-xs text-slate-500 mb-6">Guarda una copia comprimida de tus registros (incluyendo imágenes) o restaura una anterior.</p>
+            <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-database text-pink-500"></i> Gestión de Datos</h3>
+            <p class="text-sm text-slate-500 mb-6">Guarda una copia comprimida de tus registros (incluyendo imágenes) o restaura una anterior.</p>
             
             <div class="grid gap-3">
                 <button onclick="downloadBackupFile()" class="p-4 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition flex items-center gap-3 group">
                     <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center group-hover:scale-110 transition"><i class="fa-solid fa-file-zipper"></i></div>
                     <div class="text-left">
-                        <h4 class="font-bold text-slate-700 text-sm">Descargar Backup ZIP</h4>
-                        <p class="text-[10px] text-slate-400">Archivo comprimido completo</p>
+                        <h4 class="font-bold text-slate-700 text-lg">Descargar Backup ZIP</h4>
+                        <p class="text-xs text-slate-400">Archivo comprimido completo</p>
                     </div>
                 </button>
 
                 <label class="p-4 rounded-xl border border-slate-200 hover:border-green-400 hover:bg-green-50 transition flex items-center gap-3 group cursor-pointer relative">
                     <div class="w-10 h-10 rounded-full bg-green-100 text-green-500 flex items-center justify-center group-hover:scale-110 transition"><i class="fa-solid fa-upload"></i></div>
                     <div class="text-left">
-                        <h4 class="font-bold text-slate-700 text-sm">Restaurar Backup ZIP</h4>
-                        <p class="text-[10px] text-slate-400">Cargar archivo .zip</p>
+                        <h4 class="font-bold text-slate-700 text-lg">Restaurar Backup ZIP</h4>
+                        <p class="text-xs text-slate-400">Cargar archivo .zip</p>
                     </div>
                     <input type="file" id="backup-file-input" accept=".zip" class="hidden" onchange="importBackupFromFile(this)">
                 </label>
@@ -319,22 +323,22 @@
                 <button onclick="exportDataToClipboard()" class="p-4 rounded-xl border border-slate-200 hover:border-purple-400 hover:bg-purple-50 transition flex items-center gap-3 group">
                     <div class="w-10 h-10 rounded-full bg-purple-100 text-purple-500 flex items-center justify-center group-hover:scale-110 transition"><i class="fa-regular fa-copy"></i></div>
                     <div class="text-left">
-                        <h4 class="font-bold text-slate-700 text-sm">Copiar JSON (Solo Texto)</h4>
-                        <p class="text-[10px] text-slate-400">Portapapeles (sin imágenes pesadas)</p>
+                        <h4 class="font-bold text-slate-700 text-lg">Copiar JSON (Solo Texto)</h4>
+                        <p class="text-xs text-slate-400">Portapapeles (sin imágenes pesadas)</p>
                     </div>
                 </button>
             </div>
 
             <div class="flex justify-end gap-3 mt-6">
-                <button onclick="closeBackupModal()" class="px-4 py-2 text-slate-400 hover:text-slate-600 font-bold text-sm">Cerrar</button>
+                <button onclick="closeBackupModal()" class="px-4 py-2 text-slate-400 hover:text-slate-600 font-bold text-lg">Cerrar</button>
             </div>
         </div>
     </div>
 
 
     <!-- Toast (Z-INDEX AUMENTADO A 80) -->
-    <div id="toast" class="fixed top-24 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-xl opacity-0 transition-all duration-300 pointer-events-none z-[80] flex items-center gap-3 text-sm font-bold translate-y-4">
-        <div class="w-6 h-6 bg-pink-500 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-check"></i></div>
+    <div id="toast" class="fixed top-24 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-xl opacity-0 transition-all duration-300 pointer-events-none z-[80] flex items-center gap-3 text-lg font-bold translate-y-4">
+        <div class="w-6 h-6 bg-pink-500 rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-check"></i></div>
         <span id="toast-msg">Notificación</span>
     </div>
 
@@ -519,13 +523,13 @@
             <div id="patient-card-${p.id}" class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition group relative mb-3 fade-enter">
                 <div class="flex justify-between items-start mb-2">
                     <div>
-                        <h4 class="font-bold text-slate-700 text-lg leading-none">${p.name}</h4>
+                        <h4 class="font-bold text-slate-700 text-2xl leading-none">${p.name}</h4>
                         <div class="flex gap-2 mt-1">
-                            <span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"><i class="fa-solid fa-bed mr-1"></i> ${p.room}</span>
-                            <span class="bg-slate-50 text-slate-500 px-2 py-0.5 rounded text-[10px] font-bold uppercase truncate max-w-[120px]">${p.dx}</span>
+                            <span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider"><i class="fa-solid fa-bed mr-1"></i> ${p.room}</span>
+                            <span class="bg-slate-50 text-slate-500 px-2 py-0.5 rounded text-xs font-bold uppercase truncate max-w-[120px]">${p.dx}</span>
                         </div>
                     </div>
-                    <button onclick="deletePatient(${p.id})" class="text-slate-300 hover:text-red-500 transition px-2"><i class="fa-solid fa-trash-can"></i></button>
+                    <button onclick="deletePatient(${p.id})" class="text-slate-300 hover:text-red-500 transition px-2"><i class="fa-solid fa-trash-can text-lg"></i></button>
                 </div>
                 
                 <div class="mt-3 pl-1 border-l-2 border-slate-100">
@@ -533,8 +537,8 @@
                         ${tasksHTML}
                     </div>
                     <div class="flex items-center gap-2 mt-2">
-                        <input type="text" id="new-task-input-${p.id}" placeholder="+ Pendiente..." class="bg-transparent text-xs outline-none w-full placeholder-slate-300 focus:placeholder-blue-300 text-slate-600" onkeypress="if(event.key === 'Enter') addPatientTask(${p.id})">
-                        <button onclick="addPatientTask(${p.id})" class="text-blue-400 hover:text-blue-600 text-xs"><i class="fa-solid fa-plus"></i></button>
+                        <input type="text" id="new-task-input-${p.id}" placeholder="+ Pendiente..." class="bg-transparent text-lg outline-none w-full placeholder-slate-300 focus:placeholder-blue-300 text-slate-600" onkeypress="if(event.key === 'Enter') addPatientTask(${p.id})">
+                        <button onclick="addPatientTask(${p.id})" class="text-blue-400 hover:text-blue-600 text-lg"><i class="fa-solid fa-plus"></i></button>
                     </div>
                 </div>
             </div>`;
@@ -545,7 +549,7 @@
             return `
             <div id="patient-task-${t.id}" class="flex items-center gap-2 group/task mb-1 item-enter">
                 <button onclick="togglePatientTask(${patientId}, ${t.id})" id="btn-ptask-${t.id}" class="text-sm ${t.done ? 'text-green-500' : 'text-slate-300 hover:text-pink-500'} transition"><i class="fa-${t.done ? 'solid' : 'regular'} fa-circle-check"></i></button>
-                <span id="txt-ptask-${t.id}" class="text-xs flex-1 ${t.done ? 'text-slate-400 line-through' : 'text-slate-600 font-medium'}">${t.text}</span>
+                <span id="txt-ptask-${t.id}" class="text-lg flex-1 ${t.done ? 'text-slate-400 line-through' : 'text-slate-600 font-medium'}">${t.text}</span>
                 <button onclick="deletePatientTask(${patientId}, ${t.id})" class="text-slate-200 hover:text-red-400 opacity-0 group-hover/task:opacity-100 transition"><i class="fa-solid fa-xmark"></i></button>
             </div>`;
         }
@@ -555,8 +559,8 @@
             if ((state.patients || []).length === 0) {
                 return `<div id="empty-patients-msg" class="bg-white p-8 rounded-2xl border-2 border-dashed border-slate-200 text-center flex flex-col items-center justify-center h-48 fade-enter">
                      <i class="fa-solid fa-bed-pulse text-4xl text-slate-200 mb-2"></i>
-                     <p class="text-slate-400 font-bold text-sm">Sin pacientes ingresados</p>
-                     <p class="text-slate-300 text-xs">Agrega uno para comenzar ronda</p>
+                     <p class="text-slate-400 font-bold text-lg">Sin pacientes ingresados</p>
+                     <p class="text-slate-300 text-sm">Agrega uno para comenzar ronda</p>
                    </div>`;
             }
             return state.patients.map(p => createPatientCardHTML(p)).join('');
@@ -658,7 +662,7 @@
                     if(btn && txt) {
                         btn.className = `text-sm ${task.done ? 'text-green-500' : 'text-slate-300 hover:text-pink-500'} transition`;
                         btn.innerHTML = `<i class="fa-${task.done ? 'solid' : 'regular'} fa-circle-check"></i>`;
-                        txt.className = `text-xs flex-1 ${task.done ? 'text-slate-400 line-through' : 'text-slate-600 font-medium'}`;
+                        txt.className = `text-lg flex-1 ${task.done ? 'text-slate-400 line-through' : 'text-slate-600 font-medium'}`;
                     }
                 }
             }
@@ -791,11 +795,11 @@
                 // AGREGADO: shrink-0 para evitar aplastamiento
                 reminderHTML = `
                     <div class="order-3 bg-gradient-to-r from-indigo-500 to-blue-500 text-white p-4 rounded-2xl shadow-lg shadow-indigo-200 flex items-center gap-4 relative overflow-hidden shrink-0">
-                        <div class="bg-white/20 p-3 rounded-xl backdrop-blur-sm"><i class="fa-solid fa-bell text-xl"></i></div>
+                        <div class="bg-white/20 p-3 rounded-xl backdrop-blur-sm"><i class="fa-solid fa-bell text-2xl"></i></div>
                         <div class="flex-1 z-10">
-                            <p class="text-[10px] uppercase tracking-wider opacity-80 font-bold">Recordatorio</p>
-                            <h4 class="font-bold text-lg leading-tight">${nextEvent.note}</h4>
-                            <p class="text-xs mt-1 font-medium opacity-90"><i class="fa-regular fa-calendar mr-1"></i> ${isTodayEvent ? 'HOY' : eventDateStr} • ${nextEvent.eventTime}</p>
+                            <p class="text-xs uppercase tracking-wider opacity-80 font-bold">Recordatorio</p>
+                            <h4 class="font-bold text-xl leading-tight">${nextEvent.note}</h4>
+                            <p class="text-sm mt-1 font-medium opacity-90"><i class="fa-regular fa-calendar mr-1"></i> ${isTodayEvent ? 'HOY' : eventDateStr} • ${nextEvent.eventTime}</p>
                         </div>
                     </div>`;
             }
@@ -843,8 +847,8 @@
                     <!-- PACIENTES (Fichas) -->
                     <div class="order-4 lg:order-1 lg:col-span-1 lg:min-w-[350px] flex flex-col lg:h-full h-auto">
                         <div class="flex justify-between items-center mb-4 sticky top-0 bg-[#f8fafc] z-10 py-2">
-                            <h2 class="text-2xl font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-clipboard-user text-blue-500"></i> Fichas</h2>
-                            <button onclick="openPatientModal()" class="bg-blue-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-600 shadow-lg shadow-blue-200 transition"><i class="fa-solid fa-plus mr-1"></i> Ingresar</button>
+                            <h2 class="text-3xl font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-clipboard-user text-blue-500"></i> Fichas</h2>
+                            <button onclick="openPatientModal()" class="bg-blue-500 text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-blue-600 shadow-lg shadow-blue-200 transition"><i class="fa-solid fa-plus mr-1"></i> Ingresar</button>
                         </div>
                         <!-- ID AGREGADO: patients-list-container para actualizaciones fluidas -->
                         <div id="patients-list-container" class="lg:flex-1 lg:overflow-y-auto lg:pr-1 w-full hide-scrollbar">
@@ -858,32 +862,32 @@
                         
                         <!-- 1. Perfil (Orden 1) -->
                         <div class="order-1 flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 shrink-0">
-                            <div class="relative w-16 h-16 shrink-0 group cursor-pointer">
+                            <div class="relative w-20 h-20 shrink-0 group cursor-pointer">
                                 <div class="absolute inset-0 bg-pink-100 rounded-full animate-pulse"></div>
                                 <label for="profile-upload" class="cursor-pointer">
-                                    <img src="${profileImageSrc}" class="w-16 h-16 rounded-full object-cover border-2 border-white shadow relative z-10 group-hover:opacity-80 transition" onerror="this.src='https://via.placeholder.com/64?text=Dra'">
-                                    <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/30 rounded-full opacity-0 group-hover:opacity-100 transition"><i class="fa-solid fa-camera text-white text-xs"></i></div>
+                                    <img src="${profileImageSrc}" class="w-20 h-20 rounded-full object-cover border-2 border-white shadow relative z-10 group-hover:opacity-80 transition" onerror="this.src='https://via.placeholder.com/64?text=Dra'">
+                                    <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/30 rounded-full opacity-0 group-hover:opacity-100 transition"><i class="fa-solid fa-camera text-white text-sm"></i></div>
                                 </label>
                                 <input type="file" id="profile-upload" class="hidden" accept="image/*" onchange="updateProfileImage(this)">
-                                <div class="absolute -bottom-1 -right-1 bg-green-400 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center z-20 pointer-events-none"><i class="fa-solid fa-check text-[10px] text-white"></i></div>
+                                <div class="absolute -bottom-1 -right-1 bg-green-400 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center z-20 pointer-events-none"><i class="fa-solid fa-check text-xs text-white"></i></div>
                             </div>
                             <div>
                                 <p class="text-xs text-slate-400 font-bold uppercase tracking-wider">Estado Actual</p>
-                                <h2 class="text-xl font-bold text-slate-700 leading-tight flex items-center gap-2 cursor-pointer hover:text-pink-600 transition" onclick="openNameModal()" title="Clic para editar nombre">Hola, ${displayUserName} <i class="fa-solid fa-pen-to-square text-xs text-slate-300"></i></h2>
-                                <p class="text-sm text-pink-500 font-medium italic">"${greeting}"</p>
+                                <h2 class="text-2xl font-bold text-slate-700 leading-tight flex items-center gap-2 cursor-pointer hover:text-pink-600 transition" onclick="openNameModal()" title="Clic para editar nombre">Hola, ${displayUserName} <i class="fa-solid fa-pen-to-square text-sm text-slate-300"></i></h2>
+                                <p class="text-lg text-pink-500 font-medium italic">"${greeting}"</p>
                             </div>
                         </div>
 
                         <!-- 2. Turno (Orden 2) -->
                         <div onclick="renderView('turnario')" class="order-2 cursor-pointer relative overflow-hidden rounded-2xl border-2 ${shiftCardClass.replace('bg-', 'border-').replace('text-', 'border-')} p-0 transition-transform active:scale-95 shadow-sm shrink-0">
-                            <div class="${shiftCardClass} p-5 relative z-10">
+                            <div class="${shiftCardClass} p-6 relative z-10">
                                 <div class="flex justify-between items-start">
                                     <div>
-                                        <span class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Asignación ${isNextShift ? 'Próxima' : 'de Hoy'}</span>
-                                        <h3 class="text-2xl font-black tracking-tight mb-1">${shiftText}</h3>
-                                        <p class="text-sm font-medium opacity-80 flex items-center gap-1"><i class="fa-solid fa-circle-info text-xs"></i> ${shiftSubText}</p>
+                                        <span class="text-xs font-bold uppercase tracking-widest opacity-70 mb-1 block">Asignación ${isNextShift ? 'Próxima' : 'de Hoy'}</span>
+                                        <h3 class="text-3xl font-black tracking-tight mb-1">${shiftText}</h3>
+                                        <p class="text-lg font-medium opacity-80 flex items-center gap-1"><i class="fa-solid fa-circle-info text-sm"></i> ${shiftSubText}</p>
                                     </div>
-                                    <div class="w-12 h-12 rounded-xl bg-white/50 flex items-center justify-center backdrop-blur-sm shadow-sm"><i class="fa-solid ${shiftIcon} text-2xl opacity-90"></i></div>
+                                    <div class="w-14 h-14 rounded-xl bg-white/50 flex items-center justify-center backdrop-blur-sm shadow-sm"><i class="fa-solid ${shiftIcon} text-3xl opacity-90"></i></div>
                                 </div>
                             </div>
                             <div class="absolute -right-4 -bottom-8 opacity-10 pointer-events-none"><i class="fa-solid fa-heart-pulse text-9xl"></i></div>
@@ -895,21 +899,21 @@
                         <!-- 5. Botones Rápidos (Orden 5) -->
                         <div class="order-5 grid grid-cols-2 gap-3 shrink-0">
                             <div onclick="renderView('todo')" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center gap-2 hover:border-pink-200 transition group cursor-pointer">
-                                <div class="w-10 h-10 rounded-full bg-pink-50 text-pink-500 flex items-center justify-center group-hover:scale-110 transition"><i class="fa-solid fa-clipboard-list text-lg"></i></div>
-                                <span class="text-xs font-bold text-slate-600">Pendientes (${pendingTodos.length})</span>
+                                <div class="w-12 h-12 rounded-full bg-pink-50 text-pink-500 flex items-center justify-center group-hover:scale-110 transition"><i class="fa-solid fa-clipboard-list text-2xl"></i></div>
+                                <span class="text-sm font-bold text-slate-600">Pendientes (${pendingTodos.length})</span>
                             </div>
                             <div onclick="renderView('notes')" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center gap-2 hover:border-blue-200 transition group cursor-pointer">
-                                <div class="w-10 h-10 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center group-hover:scale-110 transition"><i class="fa-solid fa-file-medical text-lg"></i></div>
-                                <span class="text-xs font-bold text-slate-600">Mis Apuntes</span>
+                                <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center group-hover:scale-110 transition"><i class="fa-solid fa-file-medical text-2xl"></i></div>
+                                <span class="text-sm font-bold text-slate-600">Mis Apuntes</span>
                             </div>
                         </div>
 
                         <!-- 6. Staff (Orden 6) -->
                         <div class="order-6 pt-4 border-t border-slate-200/60 pb-8 shrink-0">
-                             <p class="text-[10px] text-center text-slate-400 uppercase tracking-widest font-bold mb-4">Equipo Médico de Guardia</p>
+                             <p class="text-xs text-center text-slate-400 uppercase tracking-widest font-bold mb-4">Equipo Médico de Guardia</p>
                             <div class="flex justify-center gap-6">
-                                 <div class="relative group"><div class="absolute -inset-1 bg-gradient-to-r from-pink-400 to-purple-400 rounded-full blur opacity-25 group-hover:opacity-50 transition"></div><img src="catita.png" class="w-20 h-20 object-contain relative z-10 drop-shadow-lg transform hover:scale-110 transition duration-300" onerror="this.style.display='none'"></div>
-                                 <div class="relative group"><div class="absolute -inset-1 bg-gradient-to-r from-blue-400 to-teal-400 rounded-full blur opacity-25 group-hover:opacity-50 transition"></div><img src="catita2.png" class="w-20 h-20 object-contain relative z-10 drop-shadow-lg transform hover:scale-110 transition duration-300" onerror="this.style.display='none'"></div>
+                                 <div class="relative group"><div class="absolute -inset-1 bg-gradient-to-r from-pink-400 to-purple-400 rounded-full blur opacity-25 group-hover:opacity-50 transition"></div><img src="catita.png" class="w-24 h-24 object-contain relative z-10 drop-shadow-lg transform hover:scale-110 transition duration-300" onerror="this.style.display='none'"></div>
+                                 <div class="relative group"><div class="absolute -inset-1 bg-gradient-to-r from-blue-400 to-teal-400 rounded-full blur opacity-25 group-hover:opacity-50 transition"></div><img src="catita2.png" class="w-24 h-24 object-contain relative z-10 drop-shadow-lg transform hover:scale-110 transition duration-300" onerror="this.style.display='none'"></div>
                             </div>
                         </div>
                     </div>
@@ -924,23 +928,23 @@
             let html = `
                 <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
                     <div class="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
-                        <button onclick="changeMonth(-1)" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-pink-600 hover:bg-white rounded-full transition shadow-sm border border-transparent hover:border-slate-100"><i class="fa-solid fa-chevron-left"></i></button>
+                        <button onclick="changeMonth(-1)" class="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-pink-600 hover:bg-white rounded-full transition shadow-sm border border-transparent hover:border-slate-100"><i class="fa-solid fa-chevron-left text-lg"></i></button>
                         <div class="text-center">
-                            <h2 class="text-lg font-black text-slate-700 uppercase tracking-wide">${monthNames[month]}</h2>
-                            <p class="text-xs text-slate-400 font-bold">${year}</p>
+                            <h2 class="text-xl font-black text-slate-700 uppercase tracking-wide">${monthNames[month]}</h2>
+                            <p class="text-sm text-slate-400 font-bold">${year}</p>
                         </div>
-                        <button onclick="changeMonth(1)" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-pink-600 hover:bg-white rounded-full transition shadow-sm border border-transparent hover:border-slate-100"><i class="fa-solid fa-chevron-right"></i></button>
+                        <button onclick="changeMonth(1)" class="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-pink-600 hover:bg-white rounded-full transition shadow-sm border border-transparent hover:border-slate-100"><i class="fa-solid fa-chevron-right text-lg"></i></button>
                     </div>
                     
                     <div class="p-3">
                         <div class="grid grid-cols-7 gap-1 mb-2 text-center">
-                            <div class="text-[10px] font-bold text-pink-400 uppercase">L</div>
-                            <div class="text-[10px] font-bold text-pink-400 uppercase">M</div>
-                            <div class="text-[10px] font-bold text-pink-400 uppercase">X</div>
-                            <div class="text-[10px] font-bold text-pink-400 uppercase">J</div>
-                            <div class="text-[10px] font-bold text-pink-400 uppercase">V</div>
-                            <div class="text-[10px] font-bold text-slate-300 uppercase">S</div>
-                            <div class="text-[10px] font-bold text-slate-300 uppercase">D</div>
+                            <div class="text-xs font-bold text-pink-400 uppercase">L</div>
+                            <div class="text-xs font-bold text-pink-400 uppercase">M</div>
+                            <div class="text-xs font-bold text-pink-400 uppercase">X</div>
+                            <div class="text-xs font-bold text-pink-400 uppercase">J</div>
+                            <div class="text-xs font-bold text-pink-400 uppercase">V</div>
+                            <div class="text-xs font-bold text-slate-300 uppercase">S</div>
+                            <div class="text-xs font-bold text-slate-300 uppercase">D</div>
                         </div>
                         <div class="grid grid-cols-7 gap-1.5">
             `;
@@ -950,7 +954,7 @@
             html += `
                         </div>
                     </div>
-                    <div class="bg-slate-50 p-3 border-t border-slate-100 grid grid-cols-3 gap-2 text-[9px] font-bold text-slate-500 uppercase tracking-wide">
+                    <div class="bg-slate-50 p-3 border-t border-slate-100 grid grid-cols-3 gap-2 text-xs font-bold text-slate-500 uppercase tracking-wide">
                         <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500"></span> Paso</span>
                         <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500"></span> Día</span>
                         <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-indigo-600"></span> Noche</span>
@@ -965,14 +969,14 @@
         function createDayCellHTML(dateKey, day) {
             const shift = state.shifts[dateKey]; 
             let bgClass = "bg-white text-slate-600 hover:bg-pink-50 border border-slate-100"; 
-            let content = `<span class="text-sm font-bold z-10 relative">${day}</span>`;
+            let content = `<span class="text-lg font-bold z-10 relative">${day}</span>`;
             
             if (shift) { 
                 if (shift.type === 'guardia') { bgClass = "bg-red-500 text-white border-red-500 shadow-md shadow-red-200"; } 
                 else if (shift.type === 'dia') { bgClass = "bg-blue-500 text-white border-blue-500 shadow-md shadow-blue-200"; } 
                 else if (shift.type === 'noche') { bgClass = "bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-200"; } 
-                else if (shift.type === 'post') { bgClass = "bg-orange-100 text-orange-600 border-orange-200"; content += `<i class="fa-solid fa-book-open absolute text-[10px] bottom-1 opacity-50"></i>`; } 
-                else if (shift.type === 'libre') { bgClass = "bg-emerald-100 text-emerald-600 border-emerald-200"; content += `<i class="fa-solid fa-face-smile absolute text-[10px] bottom-1 opacity-50"></i>`; } 
+                else if (shift.type === 'post') { bgClass = "bg-orange-100 text-orange-600 border-orange-200"; content += `<i class="fa-solid fa-book-open absolute text-xs bottom-1 opacity-50"></i>`; } 
+                else if (shift.type === 'libre') { bgClass = "bg-emerald-100 text-emerald-600 border-emerald-200"; content += `<i class="fa-solid fa-face-smile absolute text-xs bottom-1 opacity-50"></i>`; } 
             }
             
             const todayKey = new Date().toISOString().split('T')[0]; 
@@ -982,7 +986,7 @@
 
             let dots = "";
             if (shift && (shift.note || shift.eventTime)) {
-                dots = `<div class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-yellow-400 border border-white"></div>`;
+                dots = `<div class="absolute top-1 right-1 w-2 h-2 rounded-full bg-yellow-400 border border-white"></div>`;
             }
 
             return `<div onclick="openShiftModal('${dateKey}')" class="aspect-square rounded-xl flex items-center justify-center relative cursor-pointer transition-transform active:scale-90 ${bgClass}">${content}${dots}</div>`;
@@ -1055,8 +1059,8 @@
             return `
                 <div class="h-full flex flex-col">
                     <div class="flex justify-between items-end mb-4 shrink-0">
-                        <h2 class="text-2xl font-black text-slate-700">Recetario & Notas</h2>
-                        <i class="fa-solid fa-feather text-pink-300 text-xl"></i>
+                        <h2 class="text-3xl font-black text-slate-700">Recetario & Notas</h2>
+                        <i class="fa-solid fa-feather text-pink-300 text-2xl"></i>
                     </div>
                     
                     <!-- Layout Responsivo: Columna única en móvil, Dos columnas en escritorio -->
@@ -1067,30 +1071,30 @@
                             <div id="note-editor" class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 relative lg:h-auto transition-all">
                                 <div class="absolute top-0 left-4 w-full h-1 bg-gradient-to-r from-pink-300 via-pink-400 to-pink-300"></div>
                                 <div class="flex justify-between items-center mb-3">
-                                    <span id="editor-title" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nueva Entrada</span>
-                                    <button id="editor-cancel-btn" onclick="cancelEdit()" class="text-slate-400 hover:text-red-400 text-xs hidden"><i class="fa-solid fa-times"></i> Cancelar</button>
+                                    <span id="editor-title" class="text-xs font-bold text-slate-400 uppercase tracking-widest">Nueva Entrada</span>
+                                    <button id="editor-cancel-btn" onclick="cancelEdit()" class="text-slate-400 hover:text-red-400 text-sm hidden"><i class="fa-solid fa-times"></i> Cancelar</button>
                                 </div>
                                 
-                                <textarea id="new-note-text" class="w-full p-2 border border-slate-100 rounded-xl focus:ring-2 focus:ring-pink-100 focus:border-pink-200 outline-none resize-none mb-3 font-handwriting text-xl text-slate-600 bg-slate-50 leading-relaxed placeholder-slate-300 transition-all" rows="6" placeholder="Escribe aquí, doctora..."></textarea>
+                                <textarea id="new-note-text" class="w-full p-2 border border-slate-100 rounded-xl focus:ring-2 focus:ring-pink-100 focus:border-pink-200 outline-none resize-none mb-3 font-handwriting text-2xl text-slate-600 bg-slate-50 leading-relaxed placeholder-slate-300 transition-all" rows="6" placeholder="Escribe aquí, doctora..."></textarea>
                                 
                                 <div id="image-preview-container" class="hidden mb-3 relative group w-fit">
                                     <img id="image-preview" src="" class="h-24 rounded-lg border border-slate-200 object-cover shadow-sm">
-                                    <button onclick="clearImageInput()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center transform scale-90 shadow"><i class="fa-solid fa-xmark text-[10px]"></i></button>
+                                    <button onclick="clearImageInput()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center transform scale-90 shadow"><i class="fa-solid fa-xmark text-xs"></i></button>
                                 </div>
 
                                 <div class="flex justify-between items-center pt-3 border-t border-slate-100">
-                                    <label class="cursor-pointer text-slate-500 hover:text-pink-600 transition flex items-center gap-2 text-xs font-bold bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl hover:bg-pink-50 hover:border-pink-200">
+                                    <label class="cursor-pointer text-slate-500 hover:text-pink-600 transition flex items-center gap-2 text-sm font-bold bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl hover:bg-pink-50 hover:border-pink-200">
                                         <i class="fa-solid fa-camera"></i> Adjuntar
                                         <input type="file" id="new-note-image" accept="image/*" class="hidden">
                                     </label>
-                                    <button id="editor-save-btn" onclick="saveNote()" class="bg-slate-800 text-white px-6 py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transform active:scale-95 transition-all shadow-lg shadow-slate-200">
+                                    <button id="editor-save-btn" onclick="saveNote()" class="bg-slate-800 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-slate-700 transform active:scale-95 transition-all shadow-lg shadow-slate-200">
                                         <i class="fa-solid fa-check mr-1"></i> Anotar
                                     </button>
                                 </div>
                             </div>
                             
                             <!-- Tip visual para desktop -->
-                            <p class="hidden lg:block text-center text-[10px] text-slate-300 mt-4 italic">
+                            <p class="hidden lg:block text-center text-xs text-slate-300 mt-4 italic">
                                 <i class="fa-solid fa-lightbulb text-yellow-300 mr-1"></i> Selecciona una nota de la derecha para editarla aquí.
                             </p>
                         </div>
@@ -1117,18 +1121,18 @@
 
         function generateFoldersHTML() {
              return `
-                <button onclick="changeFolder('all')" class="whitespace-nowrap px-4 py-1.5 rounded-lg text-xs font-bold transition-all border ${state.currentFolderId === 'all' ? 'bg-slate-700 text-white border-slate-700 shadow-md' : 'bg-white text-slate-500 border-slate-200 hover:border-pink-300'}" data-id="all">Todas</button>
+                <button onclick="changeFolder('all')" class="whitespace-nowrap px-4 py-1.5 rounded-lg text-sm font-bold transition-all border ${state.currentFolderId === 'all' ? 'bg-slate-700 text-white border-slate-700 shadow-md' : 'bg-white text-slate-500 border-slate-200 hover:border-pink-300'}" data-id="all">Todas</button>
                 ${(state.folders || []).map(f => `
-                    <button onclick="changeFolder('${f.id}')" class="whitespace-nowrap px-4 py-1.5 rounded-lg text-xs font-bold transition-all border ${state.currentFolderId === f.id ? 'bg-pink-500 text-white border-pink-500 shadow-md' : 'bg-white text-slate-500 border-slate-200 hover:border-pink-300'}" data-id="${f.id}">${f.name}</button>
+                    <button onclick="changeFolder('${f.id}')" class="whitespace-nowrap px-4 py-1.5 rounded-lg text-sm font-bold transition-all border ${state.currentFolderId === f.id ? 'bg-pink-500 text-white border-pink-500 shadow-md' : 'bg-white text-slate-500 border-slate-200 hover:border-pink-300'}" data-id="${f.id}">${f.name}</button>
                 `).join('')}
-                <button onclick="openFolderModal()" class="w-8 h-8 rounded-lg bg-pink-50 text-pink-500 hover:bg-pink-100 flex items-center justify-center border border-pink-100 transition"><i class="fa-solid fa-plus text-xs"></i></button>
+                <button onclick="openFolderModal()" class="w-8 h-8 rounded-lg bg-pink-50 text-pink-500 hover:bg-pink-100 flex items-center justify-center border border-pink-100 transition"><i class="fa-solid fa-plus text-sm"></i></button>
             `;
         }
 
         function generateNotesListHTML() {
             let filteredNotes = state.notes || [];
             if (state.currentFolderId !== 'all') { filteredNotes = filteredNotes.filter(n => n.folderId === state.currentFolderId); }
-            if (filteredNotes.length === 0) return `<div class="text-center py-10 opacity-40"><i class="fa-solid fa-clipboard text-4xl mb-2 text-slate-300"></i><p class="text-xs font-bold text-slate-400">Sin notas registradas</p></div>`;
+            if (filteredNotes.length === 0) return `<div class="text-center py-10 opacity-40"><i class="fa-solid fa-clipboard text-4xl mb-2 text-slate-300"></i><p class="text-sm font-bold text-slate-400">Sin notas registradas</p></div>`;
             return filteredNotes.map(n => createNoteHTML(n)).join('');
         }
 
@@ -1140,9 +1144,9 @@
                 <div id="note-${note.id}" class="rx-paper p-5 rounded-r-xl rounded-l-md item-enter group hover:-translate-y-1 transition-transform duration-300">
                     <div class="absolute top-3 right-3 opacity-20 group-hover:opacity-100 transition text-slate-300 text-2xl rotate-12"><i class="fa-solid fa-user-doctor"></i></div>
                     ${img}
-                    <p class="text-slate-700 whitespace-pre-wrap font-handwriting text-xl leading-relaxed relative z-10">${note.text}</p>
+                    <p class="text-slate-700 whitespace-pre-wrap font-handwriting text-2xl leading-relaxed relative z-10">${note.text}</p>
                     <div class="flex justify-between items-center mt-4 pt-3 border-t border-dashed border-slate-200">
-                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 px-2 py-1 rounded">${folderName}</span>
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50 px-2 py-1 rounded">${folderName}</span>
                         <div class="flex gap-2 opacity-60 group-hover:opacity-100 transition">
                              <button onclick="startEditNote(${note.id})" class="text-slate-400 hover:text-blue-500 px-1"><i class="fa-solid fa-pen"></i></button>
                             <button onclick="confirmDelete('note', ${note.id})" class="text-slate-400 hover:text-red-500 px-1"><i class="fa-solid fa-trash"></i></button>
@@ -1230,22 +1234,22 @@
         // --- TODO LIST (OPTIMIZADA) ---
         function getTodoHTML() {
             const todosHTML = state.todos.length === 0 
-                ? `<div id="empty-todo-msg" class="text-center py-12 opacity-50"><i class="fa-solid fa-list-check text-4xl mb-2 text-pink-200"></i><p class="text-sm font-bold text-pink-300">¡Todo despejado, doctora!</p></div>`
+                ? `<div id="empty-todo-msg" class="text-center py-12 opacity-50"><i class="fa-solid fa-list-check text-4xl mb-2 text-pink-200"></i><p class="text-lg font-bold text-pink-300">¡Todo despejado, doctora!</p></div>`
                 : state.todos.sort((a,b) => a.done - b.done).map(t => createTodoItemHTML(t)).join('');
 
             return `
                 <div>
                     <div class="bg-blue-600 text-white p-6 rounded-2xl mb-6 shadow-lg shadow-blue-200 relative overflow-hidden">
                         <div class="relative z-10">
-                            <h2 class="text-2xl font-black mb-1">Ronda de Tareas</h2>
-                            <p class="text-blue-100 text-sm">Lista de pendientes y objetivos.</p>
+                            <h2 class="text-3xl font-black mb-1">Ronda de Tareas</h2>
+                            <p class="text-blue-100 text-lg">Lista de pendientes y objetivos.</p>
                         </div>
-                        <i class="fa-solid fa-clipboard-check absolute -right-2 -bottom-4 text-8xl text-blue-500 opacity-50 rotate-12"></i>
+                        <i class="fa-solid fa-clipboard-check absolute -right-2 -bottom-4 text-9xl text-blue-500 opacity-50 rotate-12"></i>
                     </div>
 
                     <div class="flex gap-2 mb-6 bg-white p-2 rounded-xl shadow-sm border border-slate-100">
-                        <input type="text" id="new-todo" placeholder="Agregar nueva tarea..." class="flex-1 p-3 bg-transparent outline-none text-slate-700 font-medium placeholder-slate-400" onkeypress="if(event.key === 'Enter') addTodo()">
-                        <button onclick="addTodo()" class="bg-pink-500 text-white w-12 rounded-lg hover:bg-pink-600 transition shadow-sm font-bold text-lg">+</button>
+                        <input type="text" id="new-todo" placeholder="Agregar nueva tarea..." class="flex-1 p-3 bg-transparent outline-none text-slate-700 font-medium placeholder-slate-400 text-lg" onkeypress="if(event.key === 'Enter') addTodo()">
+                        <button onclick="addTodo()" class="bg-pink-500 text-white w-12 rounded-lg hover:bg-pink-600 transition shadow-sm font-bold text-2xl">+</button>
                     </div>
                     
                     <ul id="todo-list" class="space-y-3 pb-20">${todosHTML}</ul>
@@ -1260,9 +1264,9 @@
             
             return `
                 <li id="todo-${todo.id}" class="flex items-center gap-4 p-4 rounded-xl shadow-sm border ${doneClass} transition-all group item-enter">
-                    <button onclick="toggleTodo(${todo.id})" class="text-xl focus:outline-none transform active:scale-90 transition"><i id="icon-${todo.id}" class="${iconClass}"></i></button>
-                    <span id="text-${todo.id}" class="flex-1 ${textClass} cursor-pointer select-none" onclick="toggleTodo(${todo.id})">${todo.text}</span>
-                    <button onclick="confirmDelete('todo', ${todo.id})" class="w-8 h-8 rounded-full flex items-center justify-center text-slate-300 hover:bg-red-50 hover:text-red-500 transition"><i class="fa-solid fa-trash text-xs"></i></button>
+                    <button onclick="toggleTodo(${todo.id})" class="text-2xl focus:outline-none transform active:scale-90 transition"><i id="icon-${todo.id}" class="${iconClass}"></i></button>
+                    <span id="text-${todo.id}" class="flex-1 ${textClass} text-lg cursor-pointer select-none" onclick="toggleTodo(${todo.id})">${todo.text}</span>
+                    <button onclick="confirmDelete('todo', ${todo.id})" class="w-8 h-8 rounded-full flex items-center justify-center text-slate-300 hover:bg-red-50 hover:text-red-500 transition"><i class="fa-solid fa-trash text-sm"></i></button>
                 </li>`;
         }
 
@@ -1301,11 +1305,11 @@
                 if(todo.done) {
                     item.className = "flex items-center gap-4 p-4 rounded-xl shadow-sm border opacity-60 bg-slate-50 border-slate-100 transition-all group";
                     icon.className = "fa-solid fa-circle-check text-green-500";
-                    textSpan.className = "flex-1 line-through text-slate-400 cursor-pointer select-none";
+                    textSpan.className = "flex-1 line-through text-slate-400 text-lg cursor-pointer select-none";
                 } else {
                     item.className = "flex items-center gap-4 p-4 rounded-xl shadow-sm border bg-white border-slate-100 border-l-4 border-l-pink-400 transition-all group";
                     icon.className = "fa-regular fa-circle text-slate-300 group-hover:text-pink-400";
-                    textSpan.className = "flex-1 text-slate-700 font-bold cursor-pointer select-none";
+                    textSpan.className = "flex-1 text-slate-700 font-bold text-lg cursor-pointer select-none";
                 }
             }
         }
@@ -1323,7 +1327,7 @@
                     // Si vaciamos la lista, mostrar mensaje
                     const list = document.getElementById('todo-list');
                     if(list && list.children.length === 0) {
-                        list.innerHTML = `<div id="empty-todo-msg" class="text-center py-12 opacity-50 fade-enter"><i class="fa-solid fa-list-check text-4xl mb-2 text-pink-200"></i><p class="text-sm font-bold text-pink-300">¡Todo despejado, doctora!</p></div>`;
+                        list.innerHTML = `<div id="empty-todo-msg" class="text-center py-12 opacity-50 fade-enter"><i class="fa-solid fa-list-check text-4xl mb-2 text-pink-200"></i><p class="text-lg font-bold text-pink-300">¡Todo despejado, doctora!</p></div>`;
                     }
                 }, 300); 
             }
@@ -1334,13 +1338,13 @@
             const linksHTML = state.links.map(l => createLinkHTML(l)).join('');
             return `
                 <div>
-                    <h2 class="text-2xl font-black text-slate-700 mb-4 flex items-center gap-2"><i class="fa-solid fa-book-medical text-pink-500"></i> Biblioteca & Links</h2>
+                    <h2 class="text-3xl font-black text-slate-700 mb-4 flex items-center gap-2"><i class="fa-solid fa-book-medical text-pink-500"></i> Biblioteca & Links</h2>
                     <div class="bg-white p-5 rounded-2xl shadow-sm mb-6 border border-slate-100">
                         <div class="flex flex-col gap-3">
-                            <input type="text" id="link-title" placeholder="Nombre del recurso" class="p-3 bg-slate-50 rounded-xl text-sm outline-none border border-transparent focus:bg-white focus:border-pink-300 transition">
+                            <input type="text" id="link-title" placeholder="Nombre del recurso" class="p-3 bg-slate-50 rounded-xl text-lg outline-none border border-transparent focus:bg-white focus:border-pink-300 transition">
                             <div class="flex gap-2">
-                                <input type="url" id="link-url" placeholder="https://..." class="flex-1 p-3 bg-slate-50 rounded-xl text-sm outline-none border border-transparent focus:bg-white focus:border-pink-300 transition">
-                                <button onclick="addLink()" class="bg-slate-800 text-white px-4 rounded-xl font-bold hover:bg-slate-700 transition shadow-lg shadow-slate-200">Guardar</button>
+                                <input type="url" id="link-url" placeholder="https://..." class="flex-1 p-3 bg-slate-50 rounded-xl text-lg outline-none border border-transparent focus:bg-white focus:border-pink-300 transition">
+                                <button onclick="addLink()" class="bg-slate-800 text-white px-4 rounded-xl font-bold hover:bg-slate-700 transition shadow-lg shadow-slate-200 text-lg">Guardar</button>
                             </div>
                         </div>
                     </div>
@@ -1354,10 +1358,10 @@
                 <div id="link-${link.id}" class="flex items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition hover:border-pink-100 group">
                     <img src="${favicon}" class="w-10 h-10 rounded-lg bg-slate-50 p-1.5 mr-4 object-contain" onerror="this.src='https://via.placeholder.com/32'">
                     <a href="${link.url}" target="_blank" class="flex-1 text-slate-700 font-bold hover:text-pink-600 transition truncate pr-4">
-                        ${link.title}
-                        <div class="text-[10px] text-slate-400 font-normal truncate mt-0.5">${link.url}</div>
+                        <span class="text-lg">${link.title}</span>
+                        <div class="text-xs text-slate-400 font-normal truncate mt-0.5">${link.url}</div>
                     </a>
-                    <button onclick="confirmDelete('link', ${link.id})" class="w-8 h-8 flex items-center justify-center rounded-full text-slate-300 hover:bg-red-50 hover:text-red-500 transition"><i class="fa-solid fa-trash-can"></i></button>
+                    <button onclick="confirmDelete('link', ${link.id})" class="w-8 h-8 flex items-center justify-center rounded-full text-slate-300 hover:bg-red-50 hover:text-red-500 transition"><i class="fa-solid fa-trash-can text-lg"></i></button>
                 </div>`;
         }
         function addLink() {
