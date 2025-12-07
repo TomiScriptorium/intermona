@@ -2,18 +2,26 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Intermona - Organización Médica</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Intermona</title>
     
-    <!-- Configuración de Iconos (Favicon, iOS, Desktop) -->
+    <!-- --- CONFIGURACIÓN DE ICONOS ROBUSTA --- -->
+    <!-- Favicon estándar para navegadores -->
     <link rel="icon" type="image/png" href="iconointermona.png">
     <link rel="shortcut icon" type="image/png" href="iconointermona.png">
-    <link rel="apple-touch-icon" href="iconointermona.png">
     
-    <!-- Meta tags para modo App en iOS -->
+    <!-- Iconos específicos para iOS (iPhone/iPad) -->
+    <!-- iOS busca estas etiquetas específicamente al "Agregar a Inicio" -->
+    <link rel="apple-touch-icon" href="iconointermona.png"> 
+    <link rel="apple-touch-icon" sizes="152x152" href="iconointermona.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="iconointermona.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="iconointermona.png">
+    
+    <!-- Configuración PWA para iOS (Pantalla Completa) -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Intermona">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <!-- --------------------------------------- -->
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -81,19 +89,22 @@
 
         .calendar-day { aspect-ratio: 1/1; }
         body.modal-open { overflow: hidden; }
+        
+        /* Ajustes para iPhone Notch y Safe Areas */
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        .pt-safe { padding-top: env(safe-area-inset-top); }
     </style>
 </head>
 <body class="text-gray-800 h-screen flex flex-col overflow-hidden">
 
-    <!-- Header -->
-    <header class="bg-pink-600 text-white p-4 shadow-md flex justify-between items-center z-20 shrink-0">
-        <div class="flex items-center gap-2 cursor-pointer" onclick="renderView('dashboard')">
+    <!-- Header con ajuste Safe Area para iOS -->
+    <header class="bg-pink-600 text-white p-4 pt-safe shadow-md flex justify-between items-center z-20 shrink-0">
+        <div class="flex items-center gap-2 cursor-pointer mt-1" onclick="renderView('dashboard')">
             <!-- Icono Original Restaurado -->
             <i class="fa-solid fa-user-doctor text-2xl"></i>
             <h1 class="text-xl font-bold tracking-wide">Intermona</h1>
         </div>
-        <button onclick="openBackupModal()" class="text-xs bg-pink-700 px-3 py-1 rounded hover:bg-pink-800 transition shadow-sm active:scale-95 transform flex items-center gap-1" title="Gestionar Copias de Seguridad">
+        <button onclick="openBackupModal()" class="text-xs bg-pink-700 px-3 py-1 rounded hover:bg-pink-800 transition shadow-sm active:scale-95 transform flex items-center gap-1 mt-1" title="Gestionar Copias de Seguridad">
             <i class="fa-solid fa-cloud-arrow-down"></i> Backup
         </button>
     </header>
