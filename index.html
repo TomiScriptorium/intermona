@@ -18,6 +18,9 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
+    <!-- JSZip para compresión de datos -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -284,6 +287,46 @@
         </div>
     </div>
 
+    <!-- Modal Backup (Para Importar/Exportar) - ACTUALIZADO A ZIP -->
+    <div id="backup-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-database text-pink-500"></i> Gestión de Datos</h3>
+            <p class="text-xs text-slate-500 mb-6">Guarda una copia comprimida de tus registros (incluyendo imágenes) o restaura una anterior.</p>
+            
+            <div class="grid gap-3">
+                <button onclick="downloadBackupFile()" class="p-4 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition flex items-center gap-3 group">
+                    <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center group-hover:scale-110 transition"><i class="fa-solid fa-file-zipper"></i></div>
+                    <div class="text-left">
+                        <h4 class="font-bold text-slate-700 text-sm">Descargar Backup ZIP</h4>
+                        <p class="text-[10px] text-slate-400">Archivo comprimido completo</p>
+                    </div>
+                </button>
+
+                <label class="p-4 rounded-xl border border-slate-200 hover:border-green-400 hover:bg-green-50 transition flex items-center gap-3 group cursor-pointer relative">
+                    <div class="w-10 h-10 rounded-full bg-green-100 text-green-500 flex items-center justify-center group-hover:scale-110 transition"><i class="fa-solid fa-upload"></i></div>
+                    <div class="text-left">
+                        <h4 class="font-bold text-slate-700 text-sm">Restaurar Backup ZIP</h4>
+                        <p class="text-[10px] text-slate-400">Cargar archivo .zip</p>
+                    </div>
+                    <input type="file" id="backup-file-input" accept=".zip" class="hidden" onchange="importBackupFromFile(this)">
+                </label>
+
+                <button onclick="exportDataToClipboard()" class="p-4 rounded-xl border border-slate-200 hover:border-purple-400 hover:bg-purple-50 transition flex items-center gap-3 group">
+                    <div class="w-10 h-10 rounded-full bg-purple-100 text-purple-500 flex items-center justify-center group-hover:scale-110 transition"><i class="fa-regular fa-copy"></i></div>
+                    <div class="text-left">
+                        <h4 class="font-bold text-slate-700 text-sm">Copiar JSON (Solo Texto)</h4>
+                        <p class="text-[10px] text-slate-400">Portapapeles (sin imágenes pesadas)</p>
+                    </div>
+                </button>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6">
+                <button onclick="closeBackupModal()" class="px-4 py-2 text-slate-400 hover:text-slate-600 font-bold text-sm">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+
     <!-- Toast -->
     <div id="toast" class="fixed top-24 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-xl opacity-0 transition-all duration-300 pointer-events-none z-[70] flex items-center gap-3 text-sm font-bold translate-y-4">
         <div class="w-6 h-6 bg-pink-500 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-check"></i></div>
@@ -374,9 +417,90 @@
 
         function openBackupModal() { document.getElementById('backup-modal').classList.remove('hidden'); }
         function closeBackupModal() { document.getElementById('backup-modal').classList.add('hidden'); document.getElementById('backup-file-input').value = ''; }
-        function downloadBackupFile() { const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state)); const downloadAnchorNode = document.createElement('a'); const fileName = "intermona_backup_" + new Date().toISOString().slice(0,10) + ".json"; downloadAnchorNode.setAttribute("href", dataStr); downloadAnchorNode.setAttribute("download", fileName); document.body.appendChild(downloadAnchorNode); downloadAnchorNode.click(); downloadAnchorNode.remove(); showToast("Backup Descargado", "fa-download"); }
-        function exportDataToClipboard() { const textArea = document.createElement("textarea"); textArea.value = JSON.stringify(state); textArea.style.position = "fixed"; textArea.style.left = "-9999px"; document.body.appendChild(textArea); textArea.select(); try { if(document.execCommand('copy')) showToast("Copiado al portapapeles", "fa-clipboard-check"); else showToast("Error al copiar", "fa-times"); } catch (err) { showToast("Error al copiar", "fa-times"); } document.body.removeChild(textArea); }
-        function importBackupFromFile(input) { const file = input.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function(e) { try { const data = JSON.parse(e.target.result); if (data && (data.todos || data.notes || data.shifts)) { showConfirmModal("Restaurar Datos", "Se sobrescribirá toda la información actual.", "Restaurar", function() { state = { ...state, ...data, currentDate: new Date() }; saveData(); closeConfirmModal(); closeBackupModal(); state.view = null; renderView('dashboard'); showToast("Base de datos actualizada", "fa-check-double"); }); } else { showToast("Archivo inválido", "fa-triangle-exclamation"); } } catch(err) { showToast("Error leyendo archivo", "fa-bug"); } input.value = ''; }; reader.readAsText(file); }
+        
+        // --- FUNCIONES DE BACKUP ACTUALIZADAS (USANDO ZIP) ---
+        async function downloadBackupFile() {
+            try {
+                showToast("Preparando ZIP...", "fa-spinner fa-spin");
+                
+                // Usamos JSZip (asegurado por CDN)
+                const zip = new JSZip();
+                
+                // Preparamos los datos
+                const dataStr = JSON.stringify(state, null, 2);
+                
+                // Añadimos el archivo JSON al ZIP
+                zip.file("intermona_data.json", dataStr);
+                
+                // Generamos el blob comprimido
+                const content = await zip.generateAsync({
+                    type: "blob",
+                    compression: "DEFLATE",
+                    compressionOptions: { level: 9 } // Máxima compresión
+                });
+                
+                // Crear link de descarga
+                const downloadAnchorNode = document.createElement('a');
+                const fileName = "intermona_backup_" + new Date().toISOString().slice(0,10) + ".zip";
+                
+                downloadAnchorNode.href = URL.createObjectURL(content);
+                downloadAnchorNode.setAttribute("download", fileName);
+                document.body.appendChild(downloadAnchorNode);
+                downloadAnchorNode.click();
+                
+                // Limpieza
+                document.body.removeChild(downloadAnchorNode);
+                URL.revokeObjectURL(downloadAnchorNode.href);
+                
+                showToast("Backup ZIP Descargado", "fa-file-zipper");
+            } catch (err) {
+                console.error(err);
+                showToast("Error al comprimir", "fa-triangle-exclamation");
+            }
+        }
+
+        async function importBackupFromFile(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            try {
+                showToast("Analizando ZIP...", "fa-spinner fa-spin");
+                
+                // Cargar ZIP
+                const zip = await JSZip.loadAsync(file);
+                
+                // Buscar el archivo de datos
+                const dataFile = zip.file("intermona_data.json");
+                
+                if (!dataFile) {
+                    throw new Error("El archivo ZIP no contiene datos válidos de Intermona.");
+                }
+                
+                // Leer el contenido del JSON
+                const content = await dataFile.async("string");
+                const data = JSON.parse(content);
+
+                if (data && (data.todos || data.notes || data.shifts)) {
+                    showConfirmModal("Restaurar desde ZIP", "Se reemplazará toda la información actual con el contenido del respaldo.", "Restaurar", function() {
+                        state = { ...state, ...data, currentDate: new Date() };
+                        saveData();
+                        closeConfirmModal();
+                        closeBackupModal();
+                        state.view = null;
+                        renderView('dashboard');
+                        showToast("Datos restaurados correctamente", "fa-check-double");
+                    });
+                } else {
+                    showToast("Datos corruptos o inválidos", "fa-triangle-exclamation");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Error: " + (err.message || "Archivo ZIP inválido"), "fa-bug");
+            }
+            input.value = ''; // Reset input
+        }
+
+        function exportDataToClipboard() { const textArea = document.createElement("textarea"); textArea.value = JSON.stringify(state); textArea.style.position = "fixed"; textArea.style.left = "-9999px"; document.body.appendChild(textArea); textArea.select(); try { if(document.execCommand('copy')) showToast("JSON copiado al portapapeles", "fa-clipboard-check"); else showToast("Error al copiar", "fa-times"); } catch (err) { showToast("Error al copiar", "fa-times"); } document.body.removeChild(textArea); }
 
 
         // --- FUNCIONES DE PACIENTES (NUEVO) ---
