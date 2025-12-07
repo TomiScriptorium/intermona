@@ -1004,7 +1004,7 @@
             if (el) { el.classList.add('item-leave'); setTimeout(() => { el.remove(); const list = document.getElementById('todo-list'); if(list && list.children.length === 0) { list.innerHTML = `<div id="empty-todo-msg" class="text-center py-12 opacity-50 fade-enter"><i class="fa-solid fa-list-check text-4xl mb-2 text-pink-200"></i><p class="text-lg font-bold text-pink-300">¡Todo despejado, doctora!</p></div>`; } }, 300); }
         }
 
-        // --- RENDER VIEW (THIS FUNCTION WAS MISSING!) ---
+        // --- RENDER VIEW (RESTAURADA) ---
         function renderView(viewName) {
             const container = document.getElementById('app-container');
             state.view = viewName;
@@ -1014,7 +1014,14 @@
             });
             let contentHTML = '';
             let containerClass = "fade-enter h-full ";
-            if (viewName === 'dashboard' || viewName === 'notes') containerClass += "w-full max-w-7xl mx-auto"; else containerClass += "max-w-md mx-auto";
+            
+            // CORREGIDO: 'links' ahora se muestra ancho en desktop
+            if (viewName === 'dashboard' || viewName === 'notes' || viewName === 'links') {
+                containerClass += "w-full max-w-7xl mx-auto";
+            } else {
+                containerClass += "max-w-md mx-auto";
+            }
+            
             try {
                 switch(viewName) {
                     case 'dashboard': contentHTML = getDashboardHTML(); break;
