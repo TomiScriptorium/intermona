@@ -25,9 +25,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>
         // Configurar worker de PDF.js
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        window.addEventListener('load', function() {
+            if (typeof pdfjsLib !== 'undefined') {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            }
+        });
     </script>
-    
+
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -340,41 +344,98 @@
         let selectedDateKey = null; 
         let tempShiftType = null;
 
-        function init() {
-            loadData();
-            state.view = null; 
-            renderView('dashboard');
-        }
-
-        function loadData() {
-            const saved = localStorage.getItem(APP_KEY);
-            if (saved) {
-                try {
-                    const parsed = JSON.parse(saved);
-                    if (!parsed.todos) parsed.todos = [];
-                    if (!parsed.notes) parsed.notes = [];
-                    if (!parsed.links) parsed.links = [];
-                    if (!parsed.pdfs) parsed.pdfs = []; 
-                    if (!parsed.folders) parsed.folders = [{id: 'general', name: 'General'}];
-                    if (!parsed.patients) parsed.patients = []; 
-                    if (!parsed.userName) parsed.userName = 'Dra.'; 
-                    state = { ...state, ...parsed, currentDate: new Date() }; 
-                } catch (e) { 
-                    console.error("Error cargando datos, reiniciando...", e);
-                    state.folders = [{id: 'general', name: 'General'}];
-                }
-            } else {
-                state.folders = [{id: 'general', name: 'General'}];
-                state.todos = [{ id: 1, text: "Bienvenida Dra. Intermona", done: false }];
+        // --- SISTEMA DE ALMACENAMIENTO LOCAL (SIN LIBRERÍAS EXTERNAS) ---
+        // Implementación simple de Key-Value Store usando IndexedDB nativo
+        const idbKeyval = {
+            async get(key) {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open('intermona-db', 1);
+                    request.onupgradeneeded = () => request.result.createObjectStore('store');
+                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () => {
+                        const db = request.result;
+                        const tx = db.transaction('store', 'readonly');
+                        const store = tx.objectStore('store');
+                        const req = store.get(key);
+                        req.onsuccess = () => resolve(req.result);
+                        req.onerror = () => reject(req.error);
+                    };
+                });
+            },
+            async set(key, val) {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open('intermona-db', 1);
+                    request.onupgradeneeded = () => request.result.createObjectStore('store');
+                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () => {
+                        const db = request.result;
+                        const tx = db.transaction('store', 'readwrite');
+                        const store = tx.objectStore('store');
+                        const req = store.put(val, key);
+                        req.onsuccess = () => resolve();
+                        req.onerror = () => reject(req.error);
+                    };
+                });
             }
-            if (!state.folders || state.folders.length === 0) state.folders = [{id: 'general', name: 'General'}];
+        };
+
+        async function init() {
+            try {
+                await loadData();
+                state.view = null; 
+                renderView('dashboard');
+                
+                // Migración silenciosa de localStorage a IndexedDB
+                const oldData = localStorage.getItem(APP_KEY);
+                if (oldData) {
+                    const parsed = JSON.parse(oldData);
+                    await idbKeyval.set(APP_KEY, parsed);
+                }
+            } catch (e) {
+                console.error("Error iniciando app:", e);
+            }
         }
 
-        function saveData() {
+        async function loadData() {
+            try {
+                let saved = await idbKeyval.get(APP_KEY);
+                
+                if (!saved) {
+                    const localSaved = localStorage.getItem(APP_KEY);
+                    if (localSaved) saved = JSON.parse(localSaved);
+                }
+
+                if (saved) {
+                    if (!saved.todos) saved.todos = [];
+                    if (!saved.notes) saved.notes = [];
+                    if (!saved.links) saved.links = [];
+                    if (!saved.pdfs) saved.pdfs = []; 
+                    if (!saved.folders) saved.folders = [{id: 'general', name: 'General'}];
+                    if (!saved.patients) saved.patients = []; 
+                    if (!saved.userName) saved.userName = 'Dra.'; 
+                    state = { ...state, ...saved, currentDate: new Date() }; 
+                } else {
+                    state.folders = [{id: 'general', name: 'General'}];
+                    state.todos = [{ id: 1, text: "Bienvenida Dra. Intermona", done: false }];
+                }
+                if (!state.folders || state.folders.length === 0) state.folders = [{id: 'general', name: 'General'}];
+            } catch (e) { 
+                console.error("Error cargando datos:", e);
+                state.folders = [{id: 'general', name: 'General'}];
+            }
+        }
+
+        async function saveData() {
             const toSave = { ...state };
             delete toSave.currentDate; 
             delete toSave.editingNoteId; 
-            localStorage.setItem(APP_KEY, JSON.stringify(toSave));
+            
+            try {
+                await idbKeyval.set(APP_KEY, toSave);
+            } catch (e) {
+                console.error("Error guardando en BD:", e);
+                showToast("Error al guardar", "fa-triangle-exclamation");
+            }
         }
 
         function showToast(msg, icon = 'fa-info-circle') {
@@ -485,20 +546,27 @@
         async function handlePdfUpload(input) {
             const file = input.files[0];
             if(!file) return;
-            if(file.size > 2.5 * 1024 * 1024) {
-                showToast("Archivo muy grande (Máx 2.5MB)", "fa-triangle-exclamation");
+            
+            // --- NUEVO LÍMITE: 25MB (Aumentado de 2.5MB) ---
+            if(file.size > 25 * 1024 * 1024) {
+                showToast("Archivo muy grande (Máx 25MB)", "fa-triangle-exclamation");
                 input.value = '';
                 return;
             }
+
             try {
+                showToast("Procesando archivo...", "fa-spinner fa-spin");
                 const base64 = await processFileBase64(file);
                 const newPdf = { id: Date.now(), title: file.name.replace('.pdf', ''), data: base64 };
                 if(!state.pdfs) state.pdfs = [];
                 state.pdfs.push(newPdf);
-                saveData();
+                await saveData(); 
                 renderView('links');
                 showToast("PDF Agregado", "fa-file-pdf");
-            } catch(e) { showToast("Error al leer archivo", "fa-times"); }
+            } catch(e) {
+                console.error(e); 
+                showToast("Error al leer archivo", "fa-times"); 
+            }
             input.value = '';
         }
 
@@ -597,7 +665,7 @@
                                     <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-300 group-hover:text-pink-400 transition"></i>
                                 </div>
                                 <p class="text-lg font-bold text-slate-500 group-hover:text-pink-500 transition">Toca para subir</p>
-                                <p class="text-xs text-slate-400">PDF (Máx 2.5MB)</p>
+                                <p class="text-xs text-slate-400">PDF (Máx 25MB)</p>
                                 <input type="file" id="pdf-input-file" accept="application/pdf" class="hidden" onchange="handlePdfUpload(this)">
                             </div>
                         </div>
