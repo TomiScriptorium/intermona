@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Intermona - Organización Médica</title>
     
+    <!-- Configuración de Iconos (Favicon, iOS, Desktop) -->
+    <link rel="icon" type="image/png" href="iconointermona.png">
+    <link rel="shortcut icon" type="image/png" href="iconointermona.png">
+    <link rel="apple-touch-icon" href="iconointermona.png">
+    
+    <!-- Meta tags para modo App en iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Intermona">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -79,6 +89,7 @@
     <!-- Header -->
     <header class="bg-pink-600 text-white p-4 shadow-md flex justify-between items-center z-20 shrink-0">
         <div class="flex items-center gap-2 cursor-pointer" onclick="renderView('dashboard')">
+            <!-- Icono Original Restaurado -->
             <i class="fa-solid fa-user-doctor text-2xl"></i>
             <h1 class="text-xl font-bold tracking-wide">Intermona</h1>
         </div>
