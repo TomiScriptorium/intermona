@@ -486,14 +486,15 @@
             });
 
             let contentHTML = '';
-            // CAMBIO CLAVE: Dashboard ahora es 'w-full' (ancho completo) y NO tiene 'mx-auto' ni 'max-w'
-            // Esto asegura que el contenido empiece desde el borde izquierdo real.
-            let containerClass = "fade-enter "; 
             
-            if (viewName === 'dashboard') {
-                containerClass += "w-full h-full"; // Ocupar todo el espacio
+            // CAMBIO: Ahora tanto 'dashboard' como 'notes' usan el ancho completo (w-full)
+            // Agregamos max-w-7xl para que en pantallas gigantes no se estire infinito, pero llene laptops normales.
+            let containerClass = "fade-enter h-full "; 
+            
+            if (viewName === 'dashboard' || viewName === 'notes') {
+                containerClass += "w-full max-w-7xl mx-auto"; 
             } else {
-                containerClass += "max-w-md mx-auto"; // Las otras vistas siguen centradas
+                containerClass += "max-w-md mx-auto"; // Turnario, Ronda y Links siguen centrados y angostos
             }
 
             try {
