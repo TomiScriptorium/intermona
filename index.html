@@ -87,10 +87,15 @@
 
         /* Animaciones */
         .fade-enter { animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        .item-enter { animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
         
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
         }
 
         /* Botones estilo píldora */
@@ -503,62 +508,58 @@
         function exportDataToClipboard() { const textArea = document.createElement("textarea"); textArea.value = JSON.stringify(state); textArea.style.position = "fixed"; textArea.style.left = "-9999px"; document.body.appendChild(textArea); textArea.select(); try { if(document.execCommand('copy')) showToast("JSON copiado al portapapeles", "fa-clipboard-check"); else showToast("Error al copiar", "fa-times"); } catch (err) { showToast("Error al copiar", "fa-times"); } document.body.removeChild(textArea); }
 
 
-        // --- FUNCIONES DE PACIENTES (NUEVO) ---
+        // --- FUNCIONES DE PACIENTES (OPTIMIZADAS - SIN PESTAÑEO) ---
         function openPatientModal() { document.body.classList.add('modal-open'); document.getElementById('patient-modal').classList.remove('hidden'); document.getElementById('patient-name').focus(); }
         function closePatientModal() { document.body.classList.remove('modal-open'); document.getElementById('patient-modal').classList.add('hidden'); document.getElementById('patient-name').value=''; document.getElementById('patient-room').value=''; document.getElementById('patient-dx').value=''; }
         
-        // Función auxiliar para generar el HTML de la lista de pacientes
+        // Helper: Generar HTML de una tarjeta de paciente individual
+        function createPatientCardHTML(p) {
+            const tasksHTML = p.tasks.map(t => createPatientTaskHTML(t, p.id)).join('');
+            return `
+            <div id="patient-card-${p.id}" class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition group relative mb-3 fade-enter">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <h4 class="font-bold text-slate-700 text-lg leading-none">${p.name}</h4>
+                        <div class="flex gap-2 mt-1">
+                            <span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"><i class="fa-solid fa-bed mr-1"></i> ${p.room}</span>
+                            <span class="bg-slate-50 text-slate-500 px-2 py-0.5 rounded text-[10px] font-bold uppercase truncate max-w-[120px]">${p.dx}</span>
+                        </div>
+                    </div>
+                    <button onclick="deletePatient(${p.id})" class="text-slate-300 hover:text-red-500 transition px-2"><i class="fa-solid fa-trash-can"></i></button>
+                </div>
+                
+                <div class="mt-3 pl-1 border-l-2 border-slate-100">
+                    <div id="patient-tasks-${p.id}">
+                        ${tasksHTML}
+                    </div>
+                    <div class="flex items-center gap-2 mt-2">
+                        <input type="text" id="new-task-input-${p.id}" placeholder="+ Pendiente..." class="bg-transparent text-xs outline-none w-full placeholder-slate-300 focus:placeholder-blue-300 text-slate-600" onkeypress="if(event.key === 'Enter') addPatientTask(${p.id})">
+                        <button onclick="addPatientTask(${p.id})" class="text-blue-400 hover:text-blue-600 text-xs"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        // Helper: Generar HTML de una tarea individual
+        function createPatientTaskHTML(t, patientId) {
+            return `
+            <div id="patient-task-${t.id}" class="flex items-center gap-2 group/task mb-1 item-enter">
+                <button onclick="togglePatientTask(${patientId}, ${t.id})" id="btn-ptask-${t.id}" class="text-sm ${t.done ? 'text-green-500' : 'text-slate-300 hover:text-pink-500'} transition"><i class="fa-${t.done ? 'solid' : 'regular'} fa-circle-check"></i></button>
+                <span id="txt-ptask-${t.id}" class="text-xs flex-1 ${t.done ? 'text-slate-400 line-through' : 'text-slate-600 font-medium'}">${t.text}</span>
+                <button onclick="deletePatientTask(${patientId}, ${t.id})" class="text-slate-200 hover:text-red-400 opacity-0 group-hover/task:opacity-100 transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>`;
+        }
+        
+        // Generador completo (Solo para carga inicial)
         function generatePatientsHTML() {
             if ((state.patients || []).length === 0) {
-                return `<div class="bg-white p-8 rounded-2xl border-2 border-dashed border-slate-200 text-center flex flex-col items-center justify-center h-48 fade-enter">
+                return `<div id="empty-patients-msg" class="bg-white p-8 rounded-2xl border-2 border-dashed border-slate-200 text-center flex flex-col items-center justify-center h-48 fade-enter">
                      <i class="fa-solid fa-bed-pulse text-4xl text-slate-200 mb-2"></i>
                      <p class="text-slate-400 font-bold text-sm">Sin pacientes ingresados</p>
                      <p class="text-slate-300 text-xs">Agrega uno para comenzar ronda</p>
                    </div>`;
             }
-            
-            return state.patients.map(p => {
-                const tasksHTML = p.tasks.map(t => `
-                    <div class="flex items-center gap-2 group/task mb-1">
-                        <button onclick="togglePatientTask(${p.id}, ${t.id})" class="text-sm ${t.done ? 'text-green-500' : 'text-slate-300 hover:text-pink-500'} transition"><i class="fa-${t.done ? 'solid' : 'regular'} fa-circle-check"></i></button>
-                        <span class="text-xs flex-1 ${t.done ? 'text-slate-400 line-through' : 'text-slate-600 font-medium'}">${t.text}</span>
-                        <button onclick="deletePatientTask(${p.id}, ${t.id})" class="text-slate-200 hover:text-red-400 opacity-0 group-hover/task:opacity-100 transition"><i class="fa-solid fa-xmark"></i></button>
-                    </div>
-                `).join('');
-
-                return `
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition group relative mb-3 fade-enter">
-                    <div class="flex justify-between items-start mb-2">
-                        <div>
-                            <h4 class="font-bold text-slate-700 text-lg leading-none">${p.name}</h4>
-                            <div class="flex gap-2 mt-1">
-                                <span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"><i class="fa-solid fa-bed mr-1"></i> ${p.room}</span>
-                                <span class="bg-slate-50 text-slate-500 px-2 py-0.5 rounded text-[10px] font-bold uppercase truncate max-w-[120px]">${p.dx}</span>
-                            </div>
-                        </div>
-                        <button onclick="deletePatient(${p.id})" class="text-slate-300 hover:text-red-500 transition px-2"><i class="fa-solid fa-trash-can"></i></button>
-                    </div>
-                    
-                    <div class="mt-3 pl-1 border-l-2 border-slate-100">
-                        ${tasksHTML}
-                        <div class="flex items-center gap-2 mt-2">
-                            <input type="text" id="new-task-${p.id}" placeholder="+ Pendiente..." class="bg-transparent text-xs outline-none w-full placeholder-slate-300 focus:placeholder-blue-300 text-slate-600" onkeypress="if(event.key === 'Enter') addPatientTask(${p.id})">
-                            <button onclick="addPatientTask(${p.id})" class="text-blue-400 hover:text-blue-600 text-xs"><i class="fa-solid fa-plus"></i></button>
-                        </div>
-                    </div>
-                </div>`;
-            }).join('');
-        }
-
-        // Nueva función para actualizar solo la sección de pacientes sin recargar todo
-        function refreshPatientsList() {
-            const container = document.getElementById('patients-list-container');
-            if (container) {
-                container.innerHTML = generatePatientsHTML();
-            } else {
-                // Fallback si no estamos en dashboard
-                renderView('dashboard');
-            }
+            return state.patients.map(p => createPatientCardHTML(p)).join('');
         }
 
         function createPatient() {
@@ -576,12 +577,21 @@
                 tasks: []
             };
             
-            state.patients.push(newPatient); // Agregamos al inicio para que salga arriba
+            state.patients.unshift(newPatient); // Agregar al inicio
             saveData();
             closePatientModal();
             
-            // CAMBIO CLAVE: Usar refreshPatientsList en lugar de renderView
-            refreshPatientsList(); 
+            // Actualización DOM granular (Sin recargar todo)
+            const container = document.getElementById('patients-list-container');
+            if (container) {
+                // Si estaba vacío, limpia el mensaje antes de insertar
+                const emptyMsg = document.getElementById('empty-patients-msg');
+                if (emptyMsg) emptyMsg.remove();
+                
+                container.insertAdjacentHTML('afterbegin', createPatientCardHTML(newPatient));
+            } else {
+                renderView('dashboard');
+            }
             
             showToast("Paciente Ingresado", "fa-user-plus");
         }
@@ -591,26 +601,46 @@
                 state.patients = state.patients.filter(p => p.id !== id);
                 saveData();
                 closeConfirmModal();
-                refreshPatientsList(); // Update fluido
+                
+                // Eliminación granular
+                const card = document.getElementById(`patient-card-${id}`);
+                if (card) {
+                    card.classList.add('item-leave');
+                    setTimeout(() => { 
+                        card.remove(); 
+                        // Si nos quedamos sin pacientes, mostrar mensaje vacío
+                        const container = document.getElementById('patients-list-container');
+                        if (container && container.children.length === 0) {
+                            container.innerHTML = generatePatientsHTML();
+                        }
+                    }, 300);
+                } else {
+                    renderView('dashboard'); // Fallback
+                }
                 showToast("Paciente dado de alta", "fa-user-minus");
             });
         }
 
         function addPatientTask(patientId) {
-            const input = document.getElementById(`new-task-${patientId}`);
+            const input = document.getElementById(`new-task-input-${patientId}`);
+            if(!input) return;
             const text = input.value.trim();
             if(!text) return;
             
             const patient = state.patients.find(p => p.id === patientId);
             if(patient) {
-                patient.tasks.push({ id: Date.now(), text, done: false });
+                const newTask = { id: Date.now(), text, done: false };
+                patient.tasks.push(newTask);
                 saveData();
-                refreshPatientsList(); // Update fluido
-                // Intentar mantener foco si es posible (opcional)
-                setTimeout(() => {
-                    const newInput = document.getElementById(`new-task-${patientId}`);
-                    if(newInput) newInput.focus();
-                }, 50);
+                
+                // Inserción granular (Sin recargar la lista)
+                const tasksContainer = document.getElementById(`patient-tasks-${patientId}`);
+                if(tasksContainer) {
+                    tasksContainer.insertAdjacentHTML('beforeend', createPatientTaskHTML(newTask, patientId));
+                }
+                
+                input.value = '';
+                input.focus(); // Mantener foco
             }
         }
         
@@ -621,7 +651,15 @@
                 if(task) {
                     task.done = !task.done;
                     saveData();
-                    refreshPatientsList(); // Update fluido
+                    
+                    // Actualización visual directa
+                    const btn = document.getElementById(`btn-ptask-${taskId}`);
+                    const txt = document.getElementById(`txt-ptask-${taskId}`);
+                    if(btn && txt) {
+                        btn.className = `text-sm ${task.done ? 'text-green-500' : 'text-slate-300 hover:text-pink-500'} transition`;
+                        btn.innerHTML = `<i class="fa-${task.done ? 'solid' : 'regular'} fa-circle-check"></i>`;
+                        txt.className = `text-xs flex-1 ${task.done ? 'text-slate-400 line-through' : 'text-slate-600 font-medium'}`;
+                    }
                 }
             }
         }
@@ -631,7 +669,12 @@
              if(patient) {
                  patient.tasks = patient.tasks.filter(t => t.id !== taskId);
                  saveData();
-                 refreshPatientsList(); // Update fluido
+                 
+                 // Eliminación visual directa
+                 const taskEl = document.getElementById(`patient-task-${taskId}`);
+                 if(taskEl) {
+                     taskEl.remove();
+                 }
              }
         }
 
@@ -1184,10 +1227,10 @@
             showToast("Nota eliminada", "fa-trash");
         }
         
-        // --- TODO LIST (Estilo Checklist Médico) ---
+        // --- TODO LIST (OPTIMIZADA) ---
         function getTodoHTML() {
             const todosHTML = state.todos.length === 0 
-                ? `<div class="text-center py-12 opacity-50"><i class="fa-solid fa-list-check text-4xl mb-2 text-pink-200"></i><p class="text-sm font-bold text-pink-300">¡Todo despejado, doctora!</p></div>`
+                ? `<div id="empty-todo-msg" class="text-center py-12 opacity-50"><i class="fa-solid fa-list-check text-4xl mb-2 text-pink-200"></i><p class="text-sm font-bold text-pink-300">¡Todo despejado, doctora!</p></div>`
                 : state.todos.sort((a,b) => a.done - b.done).map(t => createTodoItemHTML(t)).join('');
 
             return `
@@ -1230,7 +1273,15 @@
             const newTodo = { id: Date.now(), text, done: false };
             state.todos.unshift(newTodo);
             saveData();
-            document.getElementById('todo-list').innerHTML = state.todos.sort((a,b) => a.done - b.done).map(t => createTodoItemHTML(t)).join('');
+            
+            // Inserción granular
+            const list = document.getElementById('todo-list');
+            if(list) {
+                const emptyMsg = document.getElementById('empty-todo-msg');
+                if(emptyMsg) emptyMsg.remove();
+                list.insertAdjacentHTML('afterbegin', createTodoItemHTML(newTodo));
+            }
+
             input.value = '';
             showToast("Tarea añadida", "fa-plus");
         }
@@ -1240,14 +1291,42 @@
             if (!todo) return;
             todo.done = !todo.done;
             saveData();
-            // Re-render completo para ordenar
-            document.getElementById('todo-list').innerHTML = state.todos.sort((a,b) => a.done - b.done).map(t => createTodoItemHTML(t)).join('');
+            
+            // Actualización visual directa (sin recargar lista)
+            const item = document.getElementById(`todo-${id}`);
+            const icon = document.getElementById(`icon-${id}`);
+            const textSpan = document.getElementById(`text-${id}`);
+            
+            if(item && icon && textSpan) {
+                if(todo.done) {
+                    item.className = "flex items-center gap-4 p-4 rounded-xl shadow-sm border opacity-60 bg-slate-50 border-slate-100 transition-all group";
+                    icon.className = "fa-solid fa-circle-check text-green-500";
+                    textSpan.className = "flex-1 line-through text-slate-400 cursor-pointer select-none";
+                } else {
+                    item.className = "flex items-center gap-4 p-4 rounded-xl shadow-sm border bg-white border-slate-100 border-l-4 border-l-pink-400 transition-all group";
+                    icon.className = "fa-regular fa-circle text-slate-300 group-hover:text-pink-400";
+                    textSpan.className = "flex-1 text-slate-700 font-bold cursor-pointer select-none";
+                }
+            }
         }
+        
         function deleteTodo(id) {
             state.todos = state.todos.filter(t => t.id !== id);
             saveData();
+            
+            // Eliminación visual directa
             const el = document.getElementById(`todo-${id}`);
-            if (el) { el.classList.add('item-leave'); setTimeout(() => el.remove(), 300); }
+            if (el) { 
+                el.classList.add('item-leave'); 
+                setTimeout(() => {
+                    el.remove();
+                    // Si vaciamos la lista, mostrar mensaje
+                    const list = document.getElementById('todo-list');
+                    if(list && list.children.length === 0) {
+                        list.innerHTML = `<div id="empty-todo-msg" class="text-center py-12 opacity-50 fade-enter"><i class="fa-solid fa-list-check text-4xl mb-2 text-pink-200"></i><p class="text-sm font-bold text-pink-300">¡Todo despejado, doctora!</p></div>`;
+                    }
+                }, 300); 
+            }
         }
 
         // --- LINKS (Estilo Biblioteca) ---
