@@ -221,7 +221,7 @@
         </div>
     </div>
 
-    <!-- Modal Confirmación (Z-INDEX 70) -->
+    <!-- Modal Confirmación -->
     <div id="confirm-modal" class="hidden fixed inset-0 bg-slate-900/50 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-xs p-6 text-center">
             <div class="w-14 h-14 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-red-100"><i class="fa-solid fa-triangle-exclamation text-xl"></i></div>
@@ -303,14 +303,32 @@
         </div>
     </div>
 
-    <!-- Modal Lector de PDF -->
+    <!-- Modal Lector de PDF CON BARRA DE NAVEGACIÓN -->
     <div id="pdf-reader-modal" class="hidden fixed inset-0 bg-slate-900 z-[90] flex flex-col animate-fade-in">
-        <div class="bg-slate-800 text-white p-4 flex justify-between items-center shadow-lg shrink-0">
-            <h3 id="pdf-reader-title" class="text-lg font-bold truncate max-w-[80%]"><i class="fa-solid fa-file-pdf mr-2 text-red-400"></i> Documento</h3>
-            <button onclick="closePdfReader()" class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center hover:bg-red-500 transition"><i class="fa-solid fa-xmark"></i></button>
+        <!-- Header -->
+        <div class="bg-slate-800 text-white p-4 flex justify-between items-center shadow-lg shrink-0 z-20">
+            <h3 id="pdf-reader-title" class="text-lg font-bold truncate max-w-[60%]"><i class="fa-solid fa-file-pdf mr-2 text-red-400"></i> Documento</h3>
+            <div class="flex gap-2">
+                <button onclick="closePdfReader()" class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center hover:bg-red-500 transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
         </div>
-        <div class="flex-1 bg-slate-200 relative overflow-hidden">
-            <div id="pdf-viewer-container" class="w-full h-full overflow-y-auto p-4 flex flex-col items-center gap-4"></div>
+        
+        <!-- Barra de Herramientas de Paginación -->
+        <div class="bg-slate-700 text-white p-2 flex justify-center items-center gap-3 shadow-md shrink-0 z-10">
+            <button onclick="changePdfPage(-1)" class="w-8 h-8 flex items-center justify-center bg-slate-600 rounded hover:bg-slate-500 transition"><i class="fa-solid fa-chevron-left"></i></button>
+            <div class="flex items-center gap-2 text-sm font-bold">
+                <span>Pág</span>
+                <input type="number" id="pdf-page-num" class="w-12 bg-slate-600 border border-slate-500 rounded text-center text-white focus:outline-none focus:border-pink-500 font-bold" value="1" min="1" onchange="jumpToPdfPage(this.value)">
+                <span class="text-slate-400">de <span id="pdf-page-count">--</span></span>
+            </div>
+            <button onclick="changePdfPage(1)" class="w-8 h-8 flex items-center justify-center bg-slate-600 rounded hover:bg-slate-500 transition"><i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+
+        <!-- Visor (Single Page Canvas) -->
+        <div class="flex-1 bg-slate-200 relative overflow-y-auto overflow-x-hidden flex justify-center p-4" id="pdf-scroll-container">
+            <canvas id="the-canvas" class="shadow-lg max-w-full h-auto"></canvas>
+            
+            <!-- Loading indicator -->
             <div id="pdf-loader" class="absolute inset-0 flex items-center justify-center bg-white z-10 hidden">
                 <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500"></div>
             </div>
@@ -344,8 +362,14 @@
         let selectedDateKey = null; 
         let tempShiftType = null;
 
+        // PDF Variables Globales
+        let pdfDoc = null;
+        let pageNum = 1;
+        let pageRendering = false;
+        let pageNumPending = null;
+        let scale = 1.5; // Escala inicial, se ajustará dinámicamente
+
         // --- SISTEMA DE ALMACENAMIENTO LOCAL (SIN LIBRERÍAS EXTERNAS) ---
-        // Implementación simple de Key-Value Store usando IndexedDB nativo
         const idbKeyval = {
             async get(key) {
                 return new Promise((resolve, reject) => {
@@ -384,8 +408,6 @@
                 await loadData();
                 state.view = null; 
                 renderView('dashboard');
-                
-                // Migración silenciosa de localStorage a IndexedDB
                 const oldData = localStorage.getItem(APP_KEY);
                 if (oldData) {
                     const parsed = JSON.parse(oldData);
@@ -399,12 +421,10 @@
         async function loadData() {
             try {
                 let saved = await idbKeyval.get(APP_KEY);
-                
                 if (!saved) {
                     const localSaved = localStorage.getItem(APP_KEY);
                     if (localSaved) saved = JSON.parse(localSaved);
                 }
-
                 if (saved) {
                     if (!saved.todos) saved.todos = [];
                     if (!saved.notes) saved.notes = [];
@@ -429,7 +449,6 @@
             const toSave = { ...state };
             delete toSave.currentDate; 
             delete toSave.editingNoteId; 
-            
             try {
                 await idbKeyval.set(APP_KEY, toSave);
             } catch (e) {
@@ -438,6 +457,131 @@
             }
         }
 
+        // --- PDF RENDER LOGIC (PAGINADA) ---
+        function renderPage(num) {
+            pageRendering = true;
+            
+            // Mostrar loader si tarda
+            const loader = document.getElementById('pdf-loader');
+            loader.classList.remove('hidden');
+
+            pdfDoc.getPage(num).then(function(page) {
+                const canvas = document.getElementById('the-canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Calcular escala para ajustar al ancho del contenedor
+                const container = document.getElementById('pdf-scroll-container');
+                const viewportTest = page.getViewport({scale: 1.0});
+                
+                // Queremos que ocupe el 95% del ancho disponible o máximo 800px
+                const desiredWidth = Math.min(container.clientWidth * 0.95, 1000);
+                const scale = desiredWidth / viewportTest.width;
+                const viewport = page.getViewport({scale: scale});
+
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                const renderContext = {
+                    canvasContext: ctx,
+                    viewport: viewport
+                };
+                
+                const renderTask = page.render(renderContext);
+
+                renderTask.promise.then(function() {
+                    pageRendering = false;
+                    loader.classList.add('hidden'); // Ocultar loader
+                    
+                    if (pageNumPending !== null) {
+                        renderPage(pageNumPending);
+                        pageNumPending = null;
+                    }
+                });
+            });
+
+            // Actualizar UI
+            document.getElementById('pdf-page-num').value = num;
+        }
+
+        function queueRenderPage(num) {
+            if (pageRendering) {
+                pageNumPending = num;
+            } else {
+                renderPage(num);
+            }
+        }
+
+        function onPrevPage() {
+            if (pageNum <= 1) return;
+            pageNum--;
+            queueRenderPage(pageNum);
+        }
+
+        function onNextPage() {
+            if (pageNum >= pdfDoc.numPages) return;
+            pageNum++;
+            queueRenderPage(pageNum);
+        }
+        
+        // Función wrapper para botones HTML
+        function changePdfPage(delta) {
+            if (delta === -1) onPrevPage();
+            if (delta === 1) onNextPage();
+        }
+
+        function jumpToPdfPage(numVal) {
+            const num = parseInt(numVal);
+            if (num >= 1 && num <= pdfDoc.numPages) {
+                pageNum = num;
+                queueRenderPage(pageNum);
+            } else {
+                // Reset si es inválido
+                document.getElementById('pdf-page-num').value = pageNum;
+            }
+        }
+
+        async function openPdfReader(id) {
+            const pdf = state.pdfs.find(p => p.id === id);
+            if(!pdf) return;
+
+            const modal = document.getElementById('pdf-reader-modal');
+            const title = document.getElementById('pdf-reader-title');
+            const loader = document.getElementById('pdf-loader');
+            
+            // Limpiar canvas previo
+            const canvas = document.getElementById('the-canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            title.innerHTML = `<i class="fa-solid fa-file-pdf mr-2 text-red-400"></i> ${pdf.title}`;
+            loader.classList.remove('hidden');
+            modal.classList.remove('hidden');
+
+            try {
+                // Cargar documento
+                const loadingTask = pdfjsLib.getDocument(pdf.data);
+                pdfDoc = await loadingTask.promise;
+                
+                // Config inicial
+                document.getElementById('pdf-page-count').textContent = pdfDoc.numPages;
+                pageNum = 1;
+                renderPage(pageNum);
+            } catch (error) {
+                console.error("Error renderizando PDF:", error);
+                showToast("Error al abrir PDF", "fa-bug");
+                closePdfReader();
+            }
+        }
+
+        function closePdfReader() {
+            document.getElementById('pdf-reader-modal').classList.add('hidden');
+            pdfDoc = null;
+            pageNum = 1;
+            pageRendering = false;
+            pageNumPending = null;
+        }
+
+        // ... (RESTO DE FUNCIONES UI: Toast, Imagenes, Modales, etc. - MANTENIDAS IGUAL) ...
         function showToast(msg, icon = 'fa-info-circle') {
             const toast = document.getElementById('toast');
             document.getElementById('toast-msg').innerText = msg;
@@ -577,45 +721,6 @@
                 reader.onload = () => resolve(reader.result);
                 reader.onerror = error => reject(error);
             });
-        }
-
-        async function openPdfReader(id) {
-            const pdf = state.pdfs.find(p => p.id === id);
-            if(!pdf) return;
-            const modal = document.getElementById('pdf-reader-modal');
-            const container = document.getElementById('pdf-viewer-container');
-            const title = document.getElementById('pdf-reader-title');
-            const loader = document.getElementById('pdf-loader');
-            title.innerHTML = `<i class="fa-solid fa-file-pdf mr-2 text-red-400"></i> ${pdf.title}`;
-            container.innerHTML = '';
-            loader.classList.remove('hidden');
-            modal.classList.remove('hidden');
-            try {
-                const loadingTask = pdfjsLib.getDocument(pdf.data);
-                const pdfDoc = await loadingTask.promise;
-                for (let i = 1; i <= pdfDoc.numPages; i++) {
-                    const page = await pdfDoc.getPage(i);
-                    const viewport = page.getViewport({scale: 1.5}); 
-                    const canvas = document.createElement('canvas');
-                    canvas.className = "shadow-lg mb-4 rounded bg-white max-w-full";
-                    const context = canvas.getContext('2d');
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
-                    canvas.style.width = '100%';
-                    canvas.style.maxWidth = '800px';
-                    canvas.style.height = 'auto';
-                    container.appendChild(canvas);
-                    await page.render({ canvasContext: context, viewport: viewport }).promise;
-                }
-            } catch (error) {
-                console.error("Error renderizando PDF:", error);
-                container.innerHTML = `<div class="text-center text-red-400 p-10"><i class="fa-solid fa-triangle-exclamation text-4xl mb-2"></i><p>No se pudo visualizar este PDF.</p></div>`;
-            } finally { loader.classList.add('hidden'); }
-        }
-
-        function closePdfReader() {
-            document.getElementById('pdf-reader-modal').classList.add('hidden');
-            document.getElementById('pdf-viewer-container').innerHTML = '';
         }
 
         function deletePdf(id) {
@@ -1072,7 +1177,7 @@
             if (el) { el.classList.add('item-leave'); setTimeout(() => { el.remove(); const list = document.getElementById('todo-list'); if(list && list.children.length === 0) { list.innerHTML = `<div id="empty-todo-msg" class="text-center py-12 opacity-50 fade-enter"><i class="fa-solid fa-list-check text-4xl mb-2 text-pink-200"></i><p class="text-lg font-bold text-pink-300">¡Todo despejado, doctora!</p></div>`; } }, 300); }
         }
 
-        // --- RENDER VIEW (RESTAURADA) ---
+        // --- RENDER VIEW ---
         function renderView(viewName) {
             const container = document.getElementById('app-container');
             state.view = viewName;
@@ -1082,14 +1187,7 @@
             });
             let contentHTML = '';
             let containerClass = "fade-enter h-full ";
-            
-            // CORREGIDO: 'links' ahora se muestra ancho en desktop
-            if (viewName === 'dashboard' || viewName === 'notes' || viewName === 'links') {
-                containerClass += "w-full max-w-7xl mx-auto";
-            } else {
-                containerClass += "max-w-md mx-auto";
-            }
-            
+            if (viewName === 'dashboard' || viewName === 'notes' || viewName === 'links') containerClass += "w-full max-w-7xl mx-auto"; else containerClass += "max-w-md mx-auto";
             try {
                 switch(viewName) {
                     case 'dashboard': contentHTML = getDashboardHTML(); break;
