@@ -186,10 +186,7 @@
         </nav>
     </div>
 
-    <!-- Modales (Turnario, Confirmación, Carpeta, Nombre, Paciente, Backup) - Código idéntico al anterior -->
-    <!-- (Se omite el código repetitivo de los modales estándar para no saturar, son los mismos que la versión anterior) -->
-    
-    <!-- Se mantienen todos los modales auxiliares -->
+    <!-- Modales -->
     <div id="shift-modal" class="hidden fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-0 overflow-hidden transform transition-all scale-100 border-t-4 border-pink-500">
              <div class="bg-pink-50 p-4 border-b border-pink-100 flex justify-between items-center"><h3 id="modal-date-title" class="text-xl font-bold text-pink-700">Editar Fecha</h3><button onclick="closeModal()" class="w-8 h-8 rounded-full bg-white text-pink-400 flex items-center justify-center hover:bg-pink-100 transition"><i class="fa-solid fa-xmark"></i></button></div>
@@ -202,7 +199,7 @@
     <div id="patient-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 border-t-4 border-blue-400"><h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-user-injured text-blue-500"></i> Ingresar Paciente</h3><div class="space-y-3"><input type="text" id="patient-name" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none text-lg font-semibold" placeholder="Nombre del Paciente"><div class="flex gap-3"><input type="text" id="patient-room" class="w-1/3 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none text-lg font-semibold" placeholder="Cama/Hab"><input type="text" id="patient-dx" class="w-2/3 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none text-lg font-semibold" placeholder="Diagnóstico (Breve)"></div></div><div class="flex justify-end gap-3 mt-6"><button onclick="closePatientModal()" class="px-4 py-2 text-slate-400 hover:text-slate-600 font-bold text-lg">Cancelar</button><button onclick="createPatient()" class="px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 font-bold text-lg shadow-lg shadow-blue-200">Ingresar</button></div></div></div>
     <div id="backup-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6"><h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-database text-pink-500"></i> Gestión de Datos</h3><p class="text-sm text-slate-500 mb-6">Guarda una copia comprimida de tus registros (incluyendo imágenes) o restaura una anterior.</p><div class="grid gap-3"><button onclick="downloadBackupFile()" class="p-4 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition flex items-center gap-3 group"><div class="w-10 h-10 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center group-hover:scale-110 transition"><i class="fa-solid fa-file-zipper"></i></div><div class="text-left"><h4 class="font-bold text-slate-700 text-lg">Descargar Backup ZIP</h4><p class="text-xs text-slate-400">Archivo comprimido completo</p></div></button><label class="p-4 rounded-xl border border-slate-200 hover:border-green-400 hover:bg-green-50 transition flex items-center gap-3 group cursor-pointer relative"><div class="w-10 h-10 rounded-full bg-green-100 text-green-500 flex items-center justify-center group-hover:scale-110 transition"><i class="fa-solid fa-upload"></i></div><div class="text-left"><h4 class="font-bold text-slate-700 text-lg">Restaurar Backup ZIP</h4><p class="text-xs text-slate-400">Cargar archivo .zip</p></div><input type="file" id="backup-file-input" accept=".zip" class="hidden" onchange="importBackupFromFile(this)"></label><button onclick="exportDataToClipboard()" class="p-4 rounded-xl border border-slate-200 hover:border-purple-400 hover:bg-purple-50 transition flex items-center gap-3 group"><div class="w-10 h-10 rounded-full bg-purple-100 text-purple-500 flex items-center justify-center group-hover:scale-110 transition"><i class="fa-regular fa-copy"></i></div><div class="text-left"><h4 class="font-bold text-slate-700 text-lg">Copiar JSON (Solo Texto)</h4><p class="text-xs text-slate-400">Portapapeles (sin imágenes pesadas)</p></div></button></div><div class="flex justify-end gap-3 mt-6"><button onclick="closeBackupModal()" class="px-4 py-2 text-slate-400 hover:text-slate-600 font-bold text-lg">Cerrar</button></div></div></div>
 
-    <!-- Modal Lector de PDF ACTUALIZADO -->
+    <!-- Modal Lector de PDF -->
     <div id="pdf-reader-modal" class="hidden fixed inset-0 bg-slate-900 z-[90] flex flex-col animate-fade-in outline-none" tabindex="0">
         <!-- Header con Padding Safe Area para iOS -->
         <div class="bg-slate-800 text-white pt-safe px-4 pb-3 flex justify-between items-center shadow-lg shrink-0 z-20 relative">
@@ -256,78 +253,170 @@
         let selectedDateKey = null; 
         let tempShiftType = null;
 
+        // --- SISTEMA DE ALMACENAMIENTO LOCAL (RESTAURADO) ---
+        const idbKeyval = {
+            async get(key) {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open('intermona-db', 1);
+                    request.onupgradeneeded = () => request.result.createObjectStore('store');
+                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () => {
+                        const db = request.result;
+                        const tx = db.transaction('store', 'readonly');
+                        const store = tx.objectStore('store');
+                        const req = store.get(key);
+                        req.onsuccess = () => resolve(req.result);
+                        req.onerror = () => reject(req.error);
+                    };
+                });
+            },
+            async set(key, val) {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open('intermona-db', 1);
+                    request.onupgradeneeded = () => request.result.createObjectStore('store');
+                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () => {
+                        const db = request.result;
+                        const tx = db.transaction('store', 'readwrite');
+                        const store = tx.objectStore('store');
+                        const req = store.put(val, key);
+                        req.onsuccess = () => resolve();
+                        req.onerror = () => reject(req.error);
+                    };
+                });
+            }
+        };
+
+        async function init() {
+            try {
+                await loadData();
+                setupGlobalListeners(); // Activar listeners de gestos
+                state.view = null; 
+                renderView('dashboard');
+                const oldData = localStorage.getItem(APP_KEY);
+                if (oldData) {
+                    const parsed = JSON.parse(oldData);
+                    await idbKeyval.set(APP_KEY, parsed);
+                }
+            } catch (e) {
+                console.error("Error iniciando app:", e);
+            }
+        }
+
+        async function loadData() {
+            try {
+                let saved = await idbKeyval.get(APP_KEY);
+                if (!saved) {
+                    const localSaved = localStorage.getItem(APP_KEY);
+                    if (localSaved) saved = JSON.parse(localSaved);
+                }
+                if (saved) {
+                    if (!saved.todos) saved.todos = [];
+                    if (!saved.notes) saved.notes = [];
+                    if (!saved.links) saved.links = [];
+                    if (!saved.pdfs) saved.pdfs = []; 
+                    if (!saved.folders) saved.folders = [{id: 'general', name: 'General'}];
+                    if (!saved.patients) saved.patients = []; 
+                    if (!saved.userName) saved.userName = 'Dra.'; 
+                    state = { ...state, ...saved, currentDate: new Date() }; 
+                } else {
+                    state.folders = [{id: 'general', name: 'General'}];
+                    state.todos = [{ id: 1, text: "Bienvenida Dra. Intermona", done: false }];
+                }
+                if (!state.folders || state.folders.length === 0) state.folders = [{id: 'general', name: 'General'}];
+            } catch (e) { 
+                console.error("Error cargando datos:", e);
+                state.folders = [{id: 'general', name: 'General'}];
+            }
+        }
+
+        async function saveData() {
+            const toSave = { ...state };
+            delete toSave.currentDate; 
+            delete toSave.editingNoteId; 
+            try {
+                await idbKeyval.set(APP_KEY, toSave);
+            } catch (e) {
+                console.error("Error guardando en BD:", e);
+                showToast("Error al guardar", "fa-triangle-exclamation");
+            }
+        }
+
         // PDF Variables
         let pdfDoc = null;
         let pageNum = 1;
         let pageRendering = false;
         let pageNumPending = null;
         let renderTask = null;
-
-        // ZOOM VARIABLES
         let currentZoom = 1.0;
-        let baseCanvasWidth = 0;
-        let initialPinchDist = 0;
+        let baseCanvasWidth = null;
         let isPinching = false;
+        let initialPinchDist = 0;
 
-        const idbKeyval = {
-            async get(key) { return new Promise((resolve, reject) => { const request = indexedDB.open('intermona-db', 1); request.onupgradeneeded = () => request.result.createObjectStore('store'); request.onerror = () => reject(request.error); request.onsuccess = () => { const db = request.result; const tx = db.transaction('store', 'readonly'); const store = tx.objectStore('store'); const req = store.get(key); req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); }; }); },
-            async set(key, val) { return new Promise((resolve, reject) => { const request = indexedDB.open('intermona-db', 1); request.onupgradeneeded = () => request.result.createObjectStore('store'); request.onerror = () => reject(request.error); request.onsuccess = () => { const db = request.result; const tx = db.transaction('store', 'readwrite'); const store = tx.objectStore('store'); const req = store.put(val, key); req.onsuccess = () => resolve(); req.onerror = () => reject(req.error); }; }); }
-        };
-
-        async function init() {
-            try { await loadData(); state.view = null; renderView('dashboard'); const oldData = localStorage.getItem(APP_KEY); if (oldData) { const parsed = JSON.parse(oldData); await idbKeyval.set(APP_KEY, parsed); } setupGlobalListeners(); } catch (e) { console.error("Error init:", e); }
-        }
-
-        async function loadData() {
-            try { let saved = await idbKeyval.get(APP_KEY); if (!saved) { const localSaved = localStorage.getItem(APP_KEY); if (localSaved) saved = JSON.parse(localSaved); } if (saved) { if (!saved.todos) saved.todos = []; if (!saved.notes) saved.notes = []; if (!saved.links) saved.links = []; if (!saved.pdfs) saved.pdfs = []; if (!saved.folders) saved.folders = [{id: 'general', name: 'General'}]; if (!saved.patients) saved.patients = []; if (!saved.userName) saved.userName = 'Dra.'; state = { ...state, ...saved, currentDate: new Date() }; } else { state.folders = [{id: 'general', name: 'General'}]; state.todos = [{ id: 1, text: "Bienvenida Dra. Intermona", done: false }]; } if (!state.folders || state.folders.length === 0) state.folders = [{id: 'general', name: 'General'}]; } catch (e) { state.folders = [{id: 'general', name: 'General'}]; }
-        }
-
-        async function saveData() { const toSave = { ...state }; delete toSave.currentDate; delete toSave.editingNoteId; try { await idbKeyval.set(APP_KEY, toSave); } catch (e) { console.error(e); } }
-
-        // --- PDF RENDER (Optimizado para Zoom) ---
+        // --- PDF RENDER (Optimizado para Nitidez Extrema en iOS) ---
         function renderPage(num) {
             pageRendering = true;
             if(renderTask) renderTask.cancel();
+
+            const loader = document.getElementById('pdf-loader');
+            loader.classList.remove('hidden'); // Mostrar loader mientras renderiza alta calidad
 
             pdfDoc.getPage(num).then(function(page) {
                 const canvas = document.getElementById('the-canvas');
                 const ctx = canvas.getContext('2d');
                 const container = document.getElementById('pdf-scroll-container');
                 
-                // 1. Calcular escala base (Fit Width)
-                const viewportTest = page.getViewport({scale: 1.0});
-                const desiredWidth = Math.min(container.clientWidth - 32, 1000); // 32px padding
-                const scale = desiredWidth / viewportTest.width;
-                const viewport = page.getViewport({scale: scale});
+                // 1. Obtener ancho visual disponible (CSS pixels)
+                // Restamos un poco de padding para asegurar que no se corte
+                const visualWidth = Math.min(container.clientWidth - 20, 1000); 
                 
-                baseCanvasWidth = viewport.width;
-
-                // 2. High DPI Render (Clave para que no se vea borroso al hacer zoom)
-                // Renderizamos al doble de la densidad normal para permitir zoom digital nítido hasta 2x
-                const outputScale = (window.devicePixelRatio || 1) * 2; 
-
-                const displayWidth = Math.floor(viewport.width * outputScale);
-                const displayHeight = Math.floor(viewport.height * outputScale);
-
-                canvas.width = displayWidth;
-                canvas.height = displayHeight;
+                // 2. Calcular 'Pixel Ratio' Efectivo
+                // En iPhone/Móviles, devicePixelRatio suele ser 2 o 3. 
+                // Multiplicamos por un factor extra (1.5 o 2) para "Sobremuestrear" (Super-sampling)
+                // Esto hace que el canvas interno sea enorme y al reducirse se vea cristalino.
+                const dpr = window.devicePixelRatio || 1;
+                const sharpFactor = (dpr < 2) ? 3 : 2; // Si es pantalla normal, forzamos x3. Si es retina, x2.
                 
-                // Estilo inicial: Ajustado al contenedor, Zoom 1.0
-                updateCanvasStyle(1.0);
+                // 3. Calcular escala de renderizado final
+                const originalViewport = page.getViewport({scale: 1.0});
+                const fitScale = visualWidth / originalViewport.width;
+                const renderScale = fitScale * dpr * sharpFactor;
 
+                // 4. Obtener viewport con la escala GIGANTE
+                const viewport = page.getViewport({scale: renderScale});
+
+                // 5. Ajustar dimensiones del Canvas (Físicas vs Estilo)
+                canvas.width = viewport.width;   // Píxeles reales (muchos)
+                canvas.height = viewport.height;
+                
+                // Fijar dimensiones visuales iniciales (CSS) para que quepa en pantalla
+                canvas.style.width = "100%";
+                canvas.style.maxWidth = `${visualWidth}px`;
+                canvas.style.height = "auto";
+                
+                // Guardar ancho base para el zoom manual posterior
+                baseCanvasWidth = visualWidth; // Guardamos el ancho LÓGICO/VISUAL
+
+                // 6. Renderizar
                 const renderContext = {
                     canvasContext: ctx,
-                    viewport: viewport,
-                    transform: outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null
+                    viewport: viewport
                 };
                 
                 renderTask = page.render(renderContext);
                 renderTask.promise.then(function() {
                     pageRendering = false;
                     renderTask = null;
-                    document.getElementById('pdf-loader').classList.add('hidden');
+                    loader.classList.add('hidden');
+                    // Restaurar zoom a 1 para asegurar alineación
+                    currentZoom = 1.0;
+                    
                     if (pageNumPending !== null) { renderPage(pageNumPending); pageNumPending = null; }
-                }).catch(e => { if(e.name !== "RenderingCancelledException") console.error(e); pageRendering = false; });
+                }).catch(e => { 
+                    if(e.name !== "RenderingCancelledException") console.error(e); 
+                    pageRendering = false; 
+                    loader.classList.add('hidden');
+                });
             });
             document.getElementById('pdf-page-num').value = num;
         }
@@ -335,20 +424,27 @@
         function updateCanvasStyle(zoomLevel) {
             const canvas = document.getElementById('the-canvas');
             if(!canvas || !baseCanvasWidth) return;
-            currentZoom = zoomLevel;
-            // Limitamos el zoom
-            if(currentZoom < 1.0) currentZoom = 1.0;
-            if(currentZoom > 4.0) currentZoom = 4.0;
             
-            // Aplicamos el tamaño vía CSS width/height (mejor que transform scale para scroll nativo)
-            const newWidth = baseCanvasWidth * currentZoom;
-            canvas.style.width = `${newWidth}px`;
-            canvas.style.height = `auto`; // Mantiene ratio
+            // Limitamos el zoom
+            currentZoom = Math.min(Math.max(zoomLevel, 1.0), 4.0);
+            
+            // Aplicamos el tamaño vía CSS width.
+            // Como el canvas interno ya es enorme (HiDPI), hacer zoom CSS
+            // simplemente revela la calidad que ya renderizamos, sin pixelarse (hasta cierto punto).
+            const newCSSWidth = baseCanvasWidth * currentZoom;
+            
+            // Importante: Quitar 'maxWidth' si hacemos zoom para permitir que crezca
+            if(currentZoom > 1.0) {
+                canvas.style.maxWidth = 'none';
+                canvas.style.width = `${newCSSWidth}px`;
+            } else {
+                canvas.style.width = "100%";
+                canvas.style.maxWidth = `${baseCanvasWidth}px`;
+            }
         }
 
-        // --- GESTIÓN DE EVENTOS TÁCTILES Y ZOOM ---
+        // --- GESTIÓN DE EVENTOS TÁCTILES Y ZOOM (Ajustado) ---
         function setupGlobalListeners() {
-            // Teclado
             document.addEventListener('keydown', (e) => {
                 if(!document.getElementById('pdf-reader-modal').classList.contains('hidden')) {
                     if(e.key === 'ArrowLeft') changePdfPage(-1);
@@ -359,35 +455,30 @@
 
             const container = document.getElementById('pdf-scroll-container');
             
-            // 1. Detección de Pellizco (Pinch)
             container.addEventListener('touchstart', function(e) {
                 if (e.touches.length === 2) {
                     isPinching = true;
-                    // Distancia inicial entre los dos dedos
                     initialPinchDist = Math.hypot(
                         e.touches[0].pageX - e.touches[1].pageX,
                         e.touches[0].pageY - e.touches[1].pageY
                     );
                 }
-            }, {passive: false}); // passive false permite preventDefault si fuera necesario
+            }, {passive: false});
 
             container.addEventListener('touchmove', function(e) {
                 if (isPinching && e.touches.length === 2) {
-                    e.preventDefault(); // Evitar scroll de la página entera al hacer zoom
-                    
+                    e.preventDefault(); 
                     const dist = Math.hypot(
                         e.touches[0].pageX - e.touches[1].pageX,
                         e.touches[0].pageY - e.touches[1].pageY
                     );
 
-                    // Calcular factor de cambio
                     if (initialPinchDist > 0) {
                         const delta = dist / initialPinchDist;
-                        // Aplicar sensibilidad suave
-                        const newZoom = currentZoom * (1 + (delta - 1) * 0.5); 
+                        const newZoom = currentZoom * delta; // Respuesta más directa
                         updateCanvasStyle(newZoom);
-                        // Resetear distancia base para movimiento continuo suave
-                        initialPinchDist = dist; 
+                        // No reseteamos initialPinchDist aquí para mantener la referencia original del gesto
+                        // Opcional: initialPinchDist = dist; si queremos incremental
                     }
                 }
             }, {passive: false});
@@ -398,11 +489,12 @@
                 }
             });
 
-            // 2. Swipe Simple (Solo si no hay Zoom)
+            // Swipe
             let touchStartX = 0;
             container.addEventListener('touchstart', e => { if(e.touches.length === 1) touchStartX = e.changedTouches[0].screenX; }, {passive: true});
             container.addEventListener('touchend', e => {
-                if(e.touches.length === 0 && !isPinching && currentZoom <= 1.1) {
+                // Solo permitir swipe si no estamos con zoom
+                if(e.touches.length === 0 && !isPinching && currentZoom <= 1.05) {
                     const touchEndX = e.changedTouches[0].screenX;
                     if (touchEndX < touchStartX - 80) changePdfPage(1);
                     if (touchEndX > touchStartX + 80) changePdfPage(-1);
