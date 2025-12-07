@@ -197,8 +197,9 @@
                     <button onclick="setShiftType('libre')" data-type="libre" class="shift-type-btn p-3 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-green-400 hover:text-green-500 font-bold text-xs transition-all flex flex-col items-center gap-2 shadow-sm">
                         <i class="fa-solid fa-mug-hot text-xl"></i> Libre
                     </button>
+                    <!-- Eliminado botón "Limpiar" redundante de la grilla, ahora hay un botón Eliminar abajo -->
                     <button onclick="setShiftType(null)" data-type="null" class="shift-type-btn p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:bg-slate-100 hover:text-slate-600 font-bold text-xs transition-all flex flex-col items-center gap-2 shadow-sm">
-                        <i class="fa-solid fa-eraser text-xl"></i> Limpiar
+                         <i class="fa-solid fa-eraser text-xl"></i> Ninguno
                     </button>
                 </div>
 
@@ -213,36 +214,13 @@
                     </div>
                 </div>
 
-                <button onclick="saveShift()" class="w-full mt-6 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 shadow-lg shadow-pink-200 transform active:scale-95 transition-all font-bold tracking-wide">
-                    <i class="fa-solid fa-floppy-disk mr-2"></i> Guardar Ficha
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Backup -->
-    <div id="backup-modal" class="hidden fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
-            <div class="bg-slate-800 text-white p-4 flex justify-between items-center">
-                <h3 class="font-bold flex items-center gap-2"><i class="fa-solid fa-server"></i> Base de Datos</h3>
-                <button onclick="closeBackupModal()"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="p-6">
-                <div class="grid grid-cols-2 gap-4 mb-6">
-                    <button onclick="downloadBackupFile()" class="p-4 bg-slate-50 border-2 border-slate-100 rounded-xl hover:border-pink-300 hover:bg-pink-50 transition group">
-                        <div class="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center mx-auto mb-2 text-pink-500 group-hover:scale-110 transition"><i class="fa-solid fa-download"></i></div>
-                        <span class="text-xs font-bold text-slate-600">Exportar</span>
+                <div class="flex justify-between items-center mt-6 gap-3">
+                    <!-- NUEVO BOTÓN ELIMINAR -->
+                    <button onclick="deleteCurrentShift()" class="px-4 py-3 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl font-bold text-sm transition-colors" title="Borrar todo el evento"><i class="fa-solid fa-trash-can"></i></button>
+                    
+                    <button onclick="saveShift()" class="flex-1 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 shadow-lg shadow-pink-200 transform active:scale-95 transition-all font-bold tracking-wide">
+                        <i class="fa-solid fa-floppy-disk mr-2"></i> Guardar Ficha
                     </button>
-                    <button onclick="exportDataToClipboard()" class="p-4 bg-slate-50 border-2 border-slate-100 rounded-xl hover:border-pink-300 hover:bg-pink-50 transition group">
-                        <div class="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center mx-auto mb-2 text-pink-500 group-hover:scale-110 transition"><i class="fa-solid fa-copy"></i></div>
-                        <span class="text-xs font-bold text-slate-600">Copiar</span>
-                    </button>
-                </div>
-                <div class="relative border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:bg-slate-50 hover:border-pink-400 transition cursor-pointer group">
-                    <input type="file" id="backup-file-input" accept=".json" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="importBackupFromFile(this)">
-                    <i class="fa-solid fa-file-arrow-up text-3xl text-slate-300 group-hover:text-pink-400 mb-2 transition"></i>
-                    <p class="text-sm font-bold text-slate-500">Restaurar Copia</p>
-                    <p class="text-[10px] text-slate-400">Seleccionar archivo .json</p>
                 </div>
             </div>
         </div>
@@ -405,6 +383,60 @@
         function openPatientModal() { document.body.classList.add('modal-open'); document.getElementById('patient-modal').classList.remove('hidden'); document.getElementById('patient-name').focus(); }
         function closePatientModal() { document.body.classList.remove('modal-open'); document.getElementById('patient-modal').classList.add('hidden'); document.getElementById('patient-name').value=''; document.getElementById('patient-room').value=''; document.getElementById('patient-dx').value=''; }
         
+        // Función auxiliar para generar el HTML de la lista de pacientes
+        function generatePatientsHTML() {
+            if ((state.patients || []).length === 0) {
+                return `<div class="bg-white p-8 rounded-2xl border-2 border-dashed border-slate-200 text-center flex flex-col items-center justify-center h-48 fade-enter">
+                     <i class="fa-solid fa-bed-pulse text-4xl text-slate-200 mb-2"></i>
+                     <p class="text-slate-400 font-bold text-sm">Sin pacientes ingresados</p>
+                     <p class="text-slate-300 text-xs">Agrega uno para comenzar ronda</p>
+                   </div>`;
+            }
+            
+            return state.patients.map(p => {
+                const tasksHTML = p.tasks.map(t => `
+                    <div class="flex items-center gap-2 group/task mb-1">
+                        <button onclick="togglePatientTask(${p.id}, ${t.id})" class="text-sm ${t.done ? 'text-green-500' : 'text-slate-300 hover:text-pink-500'} transition"><i class="fa-${t.done ? 'solid' : 'regular'} fa-circle-check"></i></button>
+                        <span class="text-xs flex-1 ${t.done ? 'text-slate-400 line-through' : 'text-slate-600 font-medium'}">${t.text}</span>
+                        <button onclick="deletePatientTask(${p.id}, ${t.id})" class="text-slate-200 hover:text-red-400 opacity-0 group-hover/task:opacity-100 transition"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                `).join('');
+
+                return `
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition group relative mb-3 fade-enter">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <h4 class="font-bold text-slate-700 text-lg leading-none">${p.name}</h4>
+                            <div class="flex gap-2 mt-1">
+                                <span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"><i class="fa-solid fa-bed mr-1"></i> ${p.room}</span>
+                                <span class="bg-slate-50 text-slate-500 px-2 py-0.5 rounded text-[10px] font-bold uppercase truncate max-w-[120px]">${p.dx}</span>
+                            </div>
+                        </div>
+                        <button onclick="deletePatient(${p.id})" class="text-slate-300 hover:text-red-500 transition px-2"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
+                    
+                    <div class="mt-3 pl-1 border-l-2 border-slate-100">
+                        ${tasksHTML}
+                        <div class="flex items-center gap-2 mt-2">
+                            <input type="text" id="new-task-${p.id}" placeholder="+ Pendiente..." class="bg-transparent text-xs outline-none w-full placeholder-slate-300 focus:placeholder-blue-300 text-slate-600" onkeypress="if(event.key === 'Enter') addPatientTask(${p.id})">
+                            <button onclick="addPatientTask(${p.id})" class="text-blue-400 hover:text-blue-600 text-xs"><i class="fa-solid fa-plus"></i></button>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // Nueva función para actualizar solo la sección de pacientes sin recargar todo
+        function refreshPatientsList() {
+            const container = document.getElementById('patients-list-container');
+            if (container) {
+                container.innerHTML = generatePatientsHTML();
+            } else {
+                // Fallback si no estamos en dashboard
+                renderView('dashboard');
+            }
+        }
+
         function createPatient() {
             const name = document.getElementById('patient-name').value.trim();
             const room = document.getElementById('patient-room').value.trim();
@@ -420,10 +452,13 @@
                 tasks: []
             };
             
-            state.patients.push(newPatient);
+            state.patients.push(newPatient); // Agregamos al inicio para que salga arriba
             saveData();
             closePatientModal();
-            renderView('dashboard');
+            
+            // CAMBIO CLAVE: Usar refreshPatientsList en lugar de renderView
+            refreshPatientsList(); 
+            
             showToast("Paciente Ingresado", "fa-user-plus");
         }
 
@@ -432,7 +467,7 @@
                 state.patients = state.patients.filter(p => p.id !== id);
                 saveData();
                 closeConfirmModal();
-                renderView('dashboard');
+                refreshPatientsList(); // Update fluido
                 showToast("Paciente dado de alta", "fa-user-minus");
             });
         }
@@ -446,8 +481,12 @@
             if(patient) {
                 patient.tasks.push({ id: Date.now(), text, done: false });
                 saveData();
-                // Re-render parcial o total. Total es más seguro por ahora.
-                renderView('dashboard'); 
+                refreshPatientsList(); // Update fluido
+                // Intentar mantener foco si es posible (opcional)
+                setTimeout(() => {
+                    const newInput = document.getElementById(`new-task-${patientId}`);
+                    if(newInput) newInput.focus();
+                }, 50);
             }
         }
         
@@ -458,7 +497,7 @@
                 if(task) {
                     task.done = !task.done;
                     saveData();
-                    renderView('dashboard');
+                    refreshPatientsList(); // Update fluido
                 }
             }
         }
@@ -468,8 +507,27 @@
              if(patient) {
                  patient.tasks = patient.tasks.filter(t => t.id !== taskId);
                  saveData();
-                 renderView('dashboard');
+                 refreshPatientsList(); // Update fluido
              }
+        }
+
+        // --- CALENDAR LOGIC UPDATED ---
+        function deleteCurrentShift() {
+            if (selectedDateKey) {
+                // Borrar del estado
+                delete state.shifts[selectedDateKey];
+                saveData();
+                closeModal();
+                
+                // Actualizar vista según donde estemos
+                if (state.view === 'turnario') {
+                    // Refrescar solo el calendario es complejo, refrescamos vista
+                    renderView('turnario');
+                } else {
+                    renderView('dashboard');
+                }
+                showToast("Evento eliminado", "fa-trash");
+            }
         }
 
 
@@ -607,43 +665,8 @@
             const profileImageSrc = state.userProfileImage || 'catita.png';
             const displayUserName = state.userName || 'Dra.';
 
-            // 3. Generación HTML Lista Pacientes
-            const patientsListContent = (state.patients || []).length === 0 
-                ? `<div class="bg-white p-8 rounded-2xl border-2 border-dashed border-slate-200 text-center flex flex-col items-center justify-center h-48">
-                     <i class="fa-solid fa-bed-pulse text-4xl text-slate-200 mb-2"></i>
-                     <p class="text-slate-400 font-bold text-sm">Sin pacientes ingresados</p>
-                     <p class="text-slate-300 text-xs">Agrega uno para comenzar ronda</p>
-                   </div>`
-                : (state.patients || []).map(p => {
-                    const tasksHTML = p.tasks.map(t => `
-                        <div class="flex items-center gap-2 group/task mb-1">
-                            <button onclick="togglePatientTask(${p.id}, ${t.id})" class="text-sm ${t.done ? 'text-green-500' : 'text-slate-300 hover:text-pink-500'} transition"><i class="fa-${t.done ? 'solid' : 'regular'} fa-circle-check"></i></button>
-                            <span class="text-xs flex-1 ${t.done ? 'text-slate-400 line-through' : 'text-slate-600 font-medium'}">${t.text}</span>
-                            <button onclick="deletePatientTask(${p.id}, ${t.id})" class="text-slate-200 hover:text-red-400 opacity-0 group-hover/task:opacity-100 transition"><i class="fa-solid fa-xmark"></i></button>
-                        </div>
-                    `).join('');
-
-                    return `
-                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition group relative mb-3">
-                        <div class="flex justify-between items-start mb-2">
-                            <div>
-                                <h4 class="font-bold text-slate-700 text-lg leading-none">${p.name}</h4>
-                                <div class="flex gap-2 mt-1">
-                                    <span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"><i class="fa-solid fa-bed mr-1"></i> ${p.room}</span>
-                                    <span class="bg-slate-50 text-slate-500 px-2 py-0.5 rounded text-[10px] font-bold uppercase truncate max-w-[120px]">${p.dx}</span>
-                                </div>
-                            </div>
-                            <button onclick="deletePatient(${p.id})" class="text-slate-300 hover:text-red-500 transition px-2"><i class="fa-solid fa-trash-can"></i></button>
-                        </div>
-                        <div class="mt-3 pl-1 border-l-2 border-slate-100">
-                            ${tasksHTML}
-                            <div class="flex items-center gap-2 mt-2">
-                                <input type="text" id="new-task-${p.id}" placeholder="+ Pendiente..." class="bg-transparent text-xs outline-none w-full placeholder-slate-300 focus:placeholder-blue-300 text-slate-600" onkeypress="if(event.key === 'Enter') addPatientTask(${p.id})">
-                                <button onclick="addPatientTask(${p.id})" class="text-blue-400 hover:text-blue-600 text-xs"><i class="fa-solid fa-plus"></i></button>
-                            </div>
-                        </div>
-                    </div>`;
-                }).join('');
+            // 3. Generación HTML Lista Pacientes (Usando la función extraída)
+            const patientsListContent = generatePatientsHTML();
 
             // LAYOUT
             // AGREGADO: shrink-0 en todos los divs de widgets para que no se compriman
@@ -656,8 +679,8 @@
                             <h2 class="text-2xl font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-clipboard-user text-blue-500"></i> Fichas</h2>
                             <button onclick="openPatientModal()" class="bg-blue-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-600 shadow-lg shadow-blue-200 transition"><i class="fa-solid fa-plus mr-1"></i> Ingresar</button>
                         </div>
-                        <!-- AGREGADO: hide-scrollbar aquí -->
-                        <div class="lg:flex-1 lg:overflow-y-auto lg:pr-1 w-full hide-scrollbar">
+                        <!-- ID AGREGADO: patients-list-container para actualizaciones fluidas -->
+                        <div id="patients-list-container" class="lg:flex-1 lg:overflow-y-auto lg:pr-1 w-full hide-scrollbar">
                             ${patientsListContent}
                         </div>
                     </div>
