@@ -152,9 +152,15 @@
                     <p class="text-xs text-pink-100 uppercase tracking-widest font-bold">Sistema Médico Personal</p>
                 </div>
             </div>
-            <button onclick="openBackupModal()" class="text-sm bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-full backdrop-blur-md transition shadow-sm border border-white/20 active:scale-95 flex items-center gap-1.5">
-                <i class="fa-solid fa-database"></i> <span class="hidden sm:inline">Datos</span>
-            </button>
+            <div class="flex gap-2">
+                <!-- BOTÓN CONTACTO (INSTAGRAM) -->
+                <button onclick="window.open('https://www.instagram.com/tomaccou?igsh=MW5vNm12Y2I1NGQ1dA%3D%3D&utm_source=qr', '_blank')" class="text-sm bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-full backdrop-blur-md transition shadow-sm border border-white/20 active:scale-95 flex items-center gap-1.5">
+                    <i class="fa-brands fa-instagram"></i> <span class="hidden sm:inline">Contacto</span>
+                </button>
+                <button onclick="openBackupModal()" class="text-sm bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-full backdrop-blur-md transition shadow-sm border border-white/20 active:scale-95 flex items-center gap-1.5">
+                    <i class="fa-solid fa-database"></i> <span class="hidden sm:inline">Datos</span>
+                </button>
+            </div>
         </div>
     </header>
 
@@ -221,7 +227,7 @@
         </div>
     </div>
 
-    <!-- Modal Confirmación -->
+    <!-- Modal Confirmación (Z-INDEX 70) -->
     <div id="confirm-modal" class="hidden fixed inset-0 bg-slate-900/50 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-xs p-6 text-center">
             <div class="w-14 h-14 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-red-100"><i class="fa-solid fa-triangle-exclamation text-xl"></i></div>
@@ -303,9 +309,8 @@
         </div>
     </div>
 
-    <!-- Modal Lector de PDF CON BARRA DE NAVEGACIÓN -->
+    <!-- Modal Lector de PDF (REEMPLAZADO IFRAME POR PDF.JS) -->
     <div id="pdf-reader-modal" class="hidden fixed inset-0 bg-slate-900 z-[90] flex flex-col animate-fade-in">
-        <!-- Header -->
         <div class="bg-slate-800 text-white p-4 flex justify-between items-center shadow-lg shrink-0 z-20">
             <h3 id="pdf-reader-title" class="text-lg font-bold truncate max-w-[60%]"><i class="fa-solid fa-file-pdf mr-2 text-red-400"></i> Documento</h3>
             <div class="flex gap-2">
@@ -313,22 +318,19 @@
             </div>
         </div>
         
-        <!-- Barra de Herramientas de Paginación -->
+        <!-- Barra de Navegación -->
         <div class="bg-slate-700 text-white p-2 flex justify-center items-center gap-3 shadow-md shrink-0 z-10">
-            <button onclick="changePdfPage(-1)" class="w-8 h-8 flex items-center justify-center bg-slate-600 rounded hover:bg-slate-500 transition"><i class="fa-solid fa-chevron-left"></i></button>
+            <button onclick="changePdfPage(-1)" class="w-8 h-8 flex items-center justify-center bg-slate-600 rounded hover:bg-slate-500 transition" title="Anterior (Flecha Izquierda)"><i class="fa-solid fa-chevron-left"></i></button>
             <div class="flex items-center gap-2 text-sm font-bold">
                 <span>Pág</span>
                 <input type="number" id="pdf-page-num" class="w-12 bg-slate-600 border border-slate-500 rounded text-center text-white focus:outline-none focus:border-pink-500 font-bold" value="1" min="1" onchange="jumpToPdfPage(this.value)">
                 <span class="text-slate-400">de <span id="pdf-page-count">--</span></span>
             </div>
-            <button onclick="changePdfPage(1)" class="w-8 h-8 flex items-center justify-center bg-slate-600 rounded hover:bg-slate-500 transition"><i class="fa-solid fa-chevron-right"></i></button>
+            <button onclick="changePdfPage(1)" class="w-8 h-8 flex items-center justify-center bg-slate-600 rounded hover:bg-slate-500 transition" title="Siguiente (Flecha Derecha)"><i class="fa-solid fa-chevron-right"></i></button>
         </div>
 
-        <!-- Visor (Single Page Canvas) -->
         <div class="flex-1 bg-slate-200 relative overflow-y-auto overflow-x-hidden flex justify-center p-4" id="pdf-scroll-container">
             <canvas id="the-canvas" class="shadow-lg max-w-full h-auto"></canvas>
-            
-            <!-- Loading indicator -->
             <div id="pdf-loader" class="absolute inset-0 flex items-center justify-center bg-white z-10 hidden">
                 <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500"></div>
             </div>
@@ -361,13 +363,34 @@
         };
         let selectedDateKey = null; 
         let tempShiftType = null;
-
-        // PDF Variables Globales
         let pdfDoc = null;
         let pageNum = 1;
         let pageRendering = false;
         let pageNumPending = null;
-        let scale = 1.5; // Escala inicial, se ajustará dinámicamente
+        let scale = 1.5;
+
+        // --- PDF SWIPE NAVIGATION (TOUCH) ---
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        function handleTouchStart(e) {
+            touchStartX = e.changedTouches[0].screenX;
+        }
+
+        function handleTouchEnd(e) {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipeGesture();
+        }
+
+        function handleSwipeGesture() {
+            const swipeThreshold = 50; 
+            if (touchEndX < touchStartX - swipeThreshold) {
+                onNextPage();
+            }
+            if (touchEndX > touchStartX + swipeThreshold) {
+                onPrevPage();
+            }
+        }
 
         // --- SISTEMA DE ALMACENAMIENTO LOCAL (SIN LIBRERÍAS EXTERNAS) ---
         const idbKeyval = {
@@ -413,6 +436,14 @@
                     const parsed = JSON.parse(oldData);
                     await idbKeyval.set(APP_KEY, parsed);
                 }
+                
+                // Add Touch Listeners for PDF Swipe
+                const pdfContainer = document.getElementById('pdf-scroll-container');
+                if(pdfContainer) {
+                    pdfContainer.addEventListener('touchstart', handleTouchStart, {passive: true});
+                    pdfContainer.addEventListener('touchend', handleTouchEnd, {passive: true});
+                }
+
             } catch (e) {
                 console.error("Error iniciando app:", e);
             }
@@ -457,29 +488,37 @@
             }
         }
 
-        // --- PDF RENDER LOGIC (PAGINADA) ---
+        // --- PDF KEYBOARD NAVIGATION ---
+        function handlePdfKeyDown(e) {
+            if (document.getElementById('pdf-reader-modal').classList.contains('hidden')) return;
+            if (e.key === 'ArrowLeft') { onPrevPage(); e.preventDefault(); } 
+            else if (e.key === 'ArrowRight') { onNextPage(); e.preventDefault(); }
+        }
+
+        // --- PDF RENDER LOGIC (DOBLE BUFFER PARA CERO FLICKER) ---
         function renderPage(num) {
             pageRendering = true;
+            // No mostrar loader para evitar parpadeo blanco entre paginas
             
-            // Mostrar loader si tarda
-            const loader = document.getElementById('pdf-loader');
-            loader.classList.remove('hidden');
-
             pdfDoc.getPage(num).then(function(page) {
-                const canvas = document.getElementById('the-canvas');
-                const ctx = canvas.getContext('2d');
-                
-                // Calcular escala para ajustar al ancho del contenedor
                 const container = document.getElementById('pdf-scroll-container');
-                const viewportTest = page.getViewport({scale: 1.0});
                 
-                // Queremos que ocupe el 95% del ancho disponible o máximo 800px
+                // 1. Crear canvas en memoria (buffer invisible)
+                const newCanvas = document.createElement('canvas');
+                newCanvas.id = "the-canvas"; 
+                newCanvas.className = "shadow-lg max-w-full h-auto";
+                const ctx = newCanvas.getContext('2d');
+                
+                const viewportTest = page.getViewport({scale: 1.0});
                 const desiredWidth = Math.min(container.clientWidth * 0.95, 1000);
                 const scale = desiredWidth / viewportTest.width;
                 const viewport = page.getViewport({scale: scale});
 
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
+                newCanvas.height = viewport.height;
+                newCanvas.width = viewport.width;
+                newCanvas.style.width = '100%';
+                newCanvas.style.maxWidth = '800px';
+                newCanvas.style.height = 'auto';
 
                 const renderContext = {
                     canvasContext: ctx,
@@ -489,8 +528,17 @@
                 const renderTask = page.render(renderContext);
 
                 renderTask.promise.then(function() {
+                    // 2. Intercambio Atómico: Solo cuando el nuevo está listo, lo ponemos en el DOM
+                    const oldCanvas = document.getElementById('the-canvas');
+                    if (oldCanvas && oldCanvas.parentNode === container) {
+                        container.replaceChild(newCanvas, oldCanvas);
+                    } else {
+                        // Si es la primera vez
+                        const loader = document.getElementById('pdf-loader');
+                        container.insertBefore(newCanvas, loader); 
+                    }
+                    
                     pageRendering = false;
-                    loader.classList.add('hidden'); // Ocultar loader
                     
                     if (pageNumPending !== null) {
                         renderPage(pageNumPending);
@@ -499,73 +547,50 @@
                 });
             });
 
-            // Actualizar UI
             document.getElementById('pdf-page-num').value = num;
         }
 
         function queueRenderPage(num) {
-            if (pageRendering) {
-                pageNumPending = num;
-            } else {
-                renderPage(num);
-            }
+            if (pageRendering) { pageNumPending = num; } else { renderPage(num); }
         }
-
-        function onPrevPage() {
-            if (pageNum <= 1) return;
-            pageNum--;
-            queueRenderPage(pageNum);
-        }
-
-        function onNextPage() {
-            if (pageNum >= pdfDoc.numPages) return;
-            pageNum++;
-            queueRenderPage(pageNum);
-        }
-        
-        // Función wrapper para botones HTML
-        function changePdfPage(delta) {
-            if (delta === -1) onPrevPage();
-            if (delta === 1) onNextPage();
-        }
-
+        function onPrevPage() { if (pageNum <= 1) return; pageNum--; queueRenderPage(pageNum); }
+        function onNextPage() { if (pageNum >= pdfDoc.numPages) return; pageNum++; queueRenderPage(pageNum); }
+        function changePdfPage(delta) { if (delta === -1) onPrevPage(); if (delta === 1) onNextPage(); }
         function jumpToPdfPage(numVal) {
             const num = parseInt(numVal);
-            if (num >= 1 && num <= pdfDoc.numPages) {
-                pageNum = num;
-                queueRenderPage(pageNum);
-            } else {
-                // Reset si es inválido
-                document.getElementById('pdf-page-num').value = pageNum;
-            }
+            if (num >= 1 && num <= pdfDoc.numPages) { pageNum = num; queueRenderPage(pageNum); } else { document.getElementById('pdf-page-num').value = pageNum; }
         }
 
         async function openPdfReader(id) {
             const pdf = state.pdfs.find(p => p.id === id);
             if(!pdf) return;
-
             const modal = document.getElementById('pdf-reader-modal');
             const title = document.getElementById('pdf-reader-title');
             const loader = document.getElementById('pdf-loader');
             
-            // Limpiar canvas previo
-            const canvas = document.getElementById('the-canvas');
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Limpiar visualmente para inicio fresco
+            const oldCanvas = document.getElementById('the-canvas');
+            if(oldCanvas) {
+                const ctx = oldCanvas.getContext('2d');
+                ctx.clearRect(0,0, oldCanvas.width, oldCanvas.height);
+            }
 
             title.innerHTML = `<i class="fa-solid fa-file-pdf mr-2 text-red-400"></i> ${pdf.title}`;
-            loader.classList.remove('hidden');
+            loader.classList.remove('hidden'); // Mostrar loader solo al abrir
             modal.classList.remove('hidden');
+            
+            document.addEventListener('keydown', handlePdfKeyDown);
 
             try {
-                // Cargar documento
                 const loadingTask = pdfjsLib.getDocument(pdf.data);
                 pdfDoc = await loadingTask.promise;
-                
-                // Config inicial
                 document.getElementById('pdf-page-count').textContent = pdfDoc.numPages;
                 pageNum = 1;
                 renderPage(pageNum);
+                
+                // Ocultar loader inicial despues del primer render
+                // El renderPage ya maneja la visualización, pero aseguramos ocultar loader inicial
+                setTimeout(() => loader.classList.add('hidden'), 500);
             } catch (error) {
                 console.error("Error renderizando PDF:", error);
                 showToast("Error al abrir PDF", "fa-bug");
@@ -575,13 +600,14 @@
 
         function closePdfReader() {
             document.getElementById('pdf-reader-modal').classList.add('hidden');
+            document.removeEventListener('keydown', handlePdfKeyDown);
             pdfDoc = null;
             pageNum = 1;
             pageRendering = false;
             pageNumPending = null;
         }
 
-        // ... (RESTO DE FUNCIONES UI: Toast, Imagenes, Modales, etc. - MANTENIDAS IGUAL) ...
+        // ... (RESTO DE FUNCIONES UI: Toast, Imagenes, Modales, etc.) ...
         function showToast(msg, icon = 'fa-info-circle') {
             const toast = document.getElementById('toast');
             document.getElementById('toast-msg').innerText = msg;
@@ -1030,154 +1056,6 @@
                 showToast("Evento eliminado", "fa-trash");
             }
         }
-        function getTurnarioHTML() {
-            const year = state.currentDate.getFullYear(); const month = state.currentDate.getMonth(); const firstDay = new Date(year, month, 1); const lastDay = new Date(year, month + 1, 0); const daysInMonth = lastDay.getDate(); const startingDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1; const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-            let html = `<div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden"><div class="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center"><button onclick="changeMonth(-1)" class="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-pink-600 hover:bg-white rounded-full transition shadow-sm border border-transparent hover:border-slate-100"><i class="fa-solid fa-chevron-left text-lg"></i></button><div class="text-center"><h2 class="text-xl font-black text-slate-700 uppercase tracking-wide">${monthNames[month]}</h2><p class="text-sm text-slate-400 font-bold">${year}</p></div><button onclick="changeMonth(1)" class="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-pink-600 hover:bg-white rounded-full transition shadow-sm border border-transparent hover:border-slate-100"><i class="fa-solid fa-chevron-right text-lg"></i></button></div><div class="p-3"><div class="grid grid-cols-7 gap-1 mb-2 text-center"><div class="text-xs font-bold text-pink-400 uppercase">L</div><div class="text-xs font-bold text-pink-400 uppercase">M</div><div class="text-xs font-bold text-pink-400 uppercase">X</div><div class="text-xs font-bold text-pink-400 uppercase">J</div><div class="text-xs font-bold text-pink-400 uppercase">V</div><div class="text-xs font-bold text-slate-300 uppercase">S</div><div class="text-xs font-bold text-slate-300 uppercase">D</div></div><div class="grid grid-cols-7 gap-1.5">`;
-            for (let i = 0; i < startingDay; i++) html += `<div></div>`;
-            for (let day = 1; day <= daysInMonth; day++) { const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`; html += createDayCellHTML(dateKey, day); }
-            html += `</div></div><div class="bg-slate-50 p-3 border-t border-slate-100 grid grid-cols-3 gap-2 text-xs font-bold text-slate-500 uppercase tracking-wide"><span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500"></span> Paso</span><span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500"></span> Día</span><span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-indigo-600"></span> Noche</span><span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-400"></span> Estudio</span><span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500"></span> Libre</span></div></div>`; 
-            return html;
-        }
-        function createDayCellHTML(dateKey, day) {
-            const shift = state.shifts[dateKey]; 
-            let bgClass = "bg-white text-slate-600 hover:bg-pink-50 border border-slate-100"; 
-            let content = `<span class="text-lg font-bold z-10 relative">${day}</span>`;
-            if (shift) { if (shift.type === 'guardia') { bgClass = "bg-red-500 text-white border-red-500 shadow-md shadow-red-200"; } else if (shift.type === 'dia') { bgClass = "bg-blue-500 text-white border-blue-500 shadow-md shadow-blue-200"; } else if (shift.type === 'noche') { bgClass = "bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-200"; } else if (shift.type === 'post') { bgClass = "bg-orange-100 text-orange-600 border-orange-200"; content += `<i class="fa-solid fa-book-open absolute text-xs bottom-1 opacity-50"></i>`; } else if (shift.type === 'libre') { bgClass = "bg-emerald-100 text-emerald-600 border-emerald-200"; content += `<i class="fa-solid fa-face-smile absolute text-xs bottom-1 opacity-50"></i>`; } }
-            const todayKey = new Date().toISOString().split('T')[0]; 
-            if (dateKey === todayKey) { bgClass += " ring-2 ring-pink-400 ring-offset-1 z-20"; }
-            let dots = "";
-            if (shift && (shift.note || shift.eventTime)) { dots = `<div class="absolute top-1 right-1 w-2 h-2 rounded-full bg-yellow-400 border border-white"></div>`; }
-            return `<div onclick="openShiftModal('${dateKey}')" class="aspect-square rounded-xl flex items-center justify-center relative cursor-pointer transition-transform active:scale-90 ${bgClass}">${content}${dots}</div>`;
-        }
-        function changeMonth(delta) { state.currentDate.setMonth(state.currentDate.getMonth() + delta); renderView('turnario'); }
-        function openShiftModal(dateKey) { 
-            selectedDateKey = dateKey; 
-            const shift = state.shifts[dateKey]; 
-            const [y, m, d] = dateKey.split('-'); 
-            const dateObj = new Date(y, m-1, d); 
-            const dateTitle = dateObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }); 
-            document.getElementById('modal-date-title').innerText = dateTitle; 
-            document.getElementById('modal-note-input').value = shift ? (shift.note || '') : ''; 
-            document.getElementById('modal-event-time').value = shift ? (shift.eventTime || '') : ''; 
-            tempShiftType = shift ? shift.type : null; 
-            updateShiftTypeUI(); 
-            document.body.classList.add('modal-open'); 
-            document.getElementById('shift-modal').classList.remove('hidden'); 
-        }
-        function setShiftType(type) { tempShiftType = type; updateShiftTypeUI(); }
-        function updateShiftTypeUI() { document.querySelectorAll('.shift-type-btn').forEach(btn => { btn.classList.remove('ring-2', 'ring-pink-500', 'bg-pink-50', 'text-pink-600', 'border-pink-200'); if (String(tempShiftType) === btn.dataset.type) { btn.classList.add('ring-2', 'ring-pink-500', 'bg-pink-50', 'text-pink-600', 'border-pink-200'); btn.classList.remove('text-slate-500', 'bg-white'); } }); }
-        function closeModal() { document.body.classList.remove('modal-open'); document.getElementById('shift-modal').classList.add('hidden'); }
-        function saveShift() { 
-            const note = document.getElementById('modal-note-input').value.trim(); 
-            const eventTime = document.getElementById('modal-event-time').value; 
-            if (!tempShiftType && !note && !eventTime) { delete state.shifts[selectedDateKey]; } else { state.shifts[selectedDateKey] = { type: tempShiftType, note: note, eventTime: eventTime }; } 
-            saveData(); 
-            closeModal(); 
-            if (state.view === 'turnario') { renderView('turnario'); } else if (state.view === 'dashboard') { renderView('dashboard'); } 
-            showToast("Ficha Actualizada", "fa-check"); 
-        }
-        function getNotesHTML() {
-            const foldersHTML = `<div class="flex overflow-x-auto gap-2 pb-2 mb-0 hide-scrollbar" id="folders-container">${generateFoldersHTML()}</div>`;
-            return `<div class="h-full flex flex-col"><div class="flex justify-between items-end mb-4 shrink-0"><h2 class="text-3xl font-black text-slate-700">Recetario & Notas</h2><i class="fa-solid fa-feather text-pink-300 text-2xl"></i></div><div class="flex flex-col lg:flex-row gap-6 flex-1 lg:overflow-hidden"><div class="lg:w-1/3 lg:min-w-[320px] shrink-0"><div id="note-editor" class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 relative lg:h-auto transition-all"><div class="absolute top-0 left-4 w-full h-1 bg-gradient-to-r from-pink-300 via-pink-400 to-pink-300"></div><div class="flex justify-between items-center mb-3"><span id="editor-title" class="text-xs font-bold text-slate-400 uppercase tracking-widest">Nueva Entrada</span><button id="editor-cancel-btn" onclick="cancelEdit()" class="text-slate-400 hover:text-red-400 text-sm hidden"><i class="fa-solid fa-times"></i> Cancelar</button></div><textarea id="new-note-text" class="w-full p-2 border border-slate-100 rounded-xl focus:ring-2 focus:ring-pink-100 focus:border-pink-200 outline-none resize-none mb-3 font-handwriting text-2xl text-slate-600 bg-slate-50 leading-relaxed placeholder-slate-300 transition-all" rows="6" placeholder="Escribe aquí, doctora..."></textarea><div id="image-preview-container" class="hidden mb-3 relative group w-fit"><img id="image-preview" src="" class="h-24 rounded-lg border border-slate-200 object-cover shadow-sm"><button onclick="clearImageInput()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center transform scale-90 shadow"><i class="fa-solid fa-xmark text-xs"></i></button></div><div class="flex justify-between items-center pt-3 border-t border-slate-100"><label class="cursor-pointer text-slate-500 hover:text-pink-600 transition flex items-center gap-2 text-sm font-bold bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl hover:bg-pink-50 hover:border-pink-200"><i class="fa-solid fa-camera"></i> Adjuntar<input type="file" id="new-note-image" accept="image/*" class="hidden"></label><button id="editor-save-btn" onclick="saveNote()" class="bg-slate-800 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-slate-700 transform active:scale-95 transition-all shadow-lg shadow-slate-200"><i class="fa-solid fa-check mr-1"></i> Anotar</button></div></div><p class="hidden lg:block text-center text-xs text-slate-300 mt-4 italic"><i class="fa-solid fa-lightbulb text-yellow-300 mr-1"></i> Selecciona una nota de la derecha para editarla aquí.</p></div><div class="lg:w-2/3 flex flex-col lg:h-full min-h-0"><div class="mb-4 shrink-0 bg-[#f8fafc] sticky top-0 z-10 pb-2">${foldersHTML}</div><div class="flex-1 lg:overflow-y-auto pr-1 pb-20 lg:pb-0 hide-scrollbar"><div id="notes-list" class="grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-min">${generateNotesListHTML()}</div></div></div></div></div>`;
-        }
-        function generateFoldersHTML() {
-             return `<button onclick="changeFolder('all')" class="whitespace-nowrap px-4 py-1.5 rounded-lg text-sm font-bold transition-all border ${state.currentFolderId === 'all' ? 'bg-slate-700 text-white border-slate-700 shadow-md' : 'bg-white text-slate-500 border-slate-200 hover:border-pink-300'}" data-id="all">Todas</button>${(state.folders || []).map(f => `<button onclick="changeFolder('${f.id}')" class="whitespace-nowrap px-4 py-1.5 rounded-lg text-sm font-bold transition-all border ${state.currentFolderId === f.id ? 'bg-pink-500 text-white border-pink-500 shadow-md' : 'bg-white text-slate-500 border-slate-200 hover:border-pink-300'}" data-id="${f.id}">${f.name}</button>`).join('')}<button onclick="openFolderModal()" class="w-8 h-8 rounded-lg bg-pink-50 text-pink-500 hover:bg-pink-100 flex items-center justify-center border border-pink-100 transition"><i class="fa-solid fa-plus text-sm"></i></button>`;
-        }
-        function generateNotesListHTML() {
-            let filteredNotes = state.notes || [];
-            if (state.currentFolderId !== 'all') { filteredNotes = filteredNotes.filter(n => n.folderId === state.currentFolderId); }
-            if (filteredNotes.length === 0) return `<div class="text-center py-10 opacity-40"><i class="fa-solid fa-clipboard text-4xl mb-2 text-slate-300"></i><p class="text-sm font-bold text-slate-400">Sin notas registradas</p></div>`;
-            return filteredNotes.map(n => createNoteHTML(n)).join('');
-        }
-        function createNoteHTML(note) {
-            const img = note.image ? `<img src="${note.image}" class="w-full h-auto rounded-lg mb-3 border border-slate-100">` : '';
-            const folderName = (state.folders || []).find(f => f.id === note.folderId)?.name || 'General';
-            return `<div id="note-${note.id}" class="rx-paper p-5 rounded-r-xl rounded-l-md item-enter group hover:-translate-y-1 transition-transform duration-300"><div class="absolute top-3 right-3 opacity-20 group-hover:opacity-100 transition text-slate-300 text-2xl rotate-12"><i class="fa-solid fa-user-doctor"></i></div>${img}<p class="text-slate-700 whitespace-pre-wrap font-handwriting text-2xl leading-relaxed relative z-10">${note.text}</p><div class="flex justify-between items-center mt-4 pt-3 border-t border-dashed border-slate-200"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50 px-2 py-1 rounded">${folderName}</span><div class="flex gap-2 opacity-60 group-hover:opacity-100 transition"><button onclick="startEditNote(${note.id})" class="text-slate-400 hover:text-blue-500 px-1"><i class="fa-solid fa-pen"></i></button><button onclick="confirmDelete('note', ${note.id})" class="text-slate-400 hover:text-red-500 px-1"><i class="fa-solid fa-trash"></i></button></div></div></div>`;
-        }
-        function changeFolder(folderId) {
-            state.currentFolderId = folderId;
-            document.getElementById('folders-container').innerHTML = generateFoldersHTML();
-            document.getElementById('notes-list').innerHTML = generateNotesListHTML();
-        }
-        function startEditNote(id) {
-            state.editingNoteId = id;
-            const note = state.notes.find(n => n.id === id);
-            if(!note) return;
-            document.getElementById('editor-title').innerText = "Editando Registro";
-            document.getElementById('editor-save-btn').innerHTML = `<i class="fa-solid fa-rotate mr-1"></i> Actualizar`;
-            document.getElementById('editor-cancel-btn').classList.remove('hidden');
-            document.getElementById('new-note-text').value = note.text;
-            if(note.image) { document.getElementById('image-preview').src = note.image; document.getElementById('image-preview-container').classList.remove('hidden'); } else { clearImageInput(); }
-            document.getElementById('note-editor').scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-        function cancelEdit() {
-            state.editingNoteId = null;
-            document.getElementById('editor-title').innerText = "Nueva Entrada";
-            document.getElementById('editor-save-btn').innerHTML = `<i class="fa-solid fa-check mr-1"></i> Anotar`;
-            document.getElementById('editor-cancel-btn').classList.add('hidden');
-            document.getElementById('new-note-text').value = '';
-            clearImageInput();
-        }
-        async function saveNote() {
-            const textInput = document.getElementById('new-note-text');
-            const fileInput = document.getElementById('new-note-image');
-            const imgPreview = document.getElementById('image-preview');
-            const text = textInput.value.trim();
-            const file = fileInput.files[0];
-            let imageData = null;
-            if (!text && !file && imgPreview.classList.contains('hidden')) return showToast("Nota vacía", "fa-pen");
-            if (file) { try { imageData = await processImage(file); } catch (e) { return showToast("Error imagen", "fa-times"); } } else if (!document.getElementById('image-preview-container').classList.contains('hidden')) { imageData = imgPreview.src; }
-            if (state.editingNoteId) { const noteIndex = state.notes.findIndex(n => n.id === state.editingNoteId); if (noteIndex > -1) { state.notes[noteIndex].text = text; state.notes[noteIndex].image = imageData; } cancelEdit(); showToast("Registro actualizado", "fa-rotate"); } else { const targetFolder = state.currentFolderId === 'all' ? 'general' : state.currentFolderId; const newNote = { id: Date.now(), text, image: imageData, folderId: targetFolder }; state.notes.unshift(newNote); textInput.value = ''; clearImageInput(); showToast("Nota guardada", "fa-check"); }
-            saveData();
-            document.getElementById('notes-list').innerHTML = generateNotesListHTML();
-        }
-        function deleteNote(id) {
-            state.notes = state.notes.filter(n => n.id !== id);
-            saveData();
-            const el = document.getElementById(`note-${id}`);
-            if(el) { el.classList.add('item-leave'); setTimeout(() => el.remove(), 300); }
-            showToast("Nota eliminada", "fa-trash");
-        }
-        function getTodoHTML() {
-            const todosHTML = state.todos.length === 0 ? `<div id="empty-todo-msg" class="text-center py-12 opacity-50"><i class="fa-solid fa-list-check text-4xl mb-2 text-pink-200"></i><p class="text-lg font-bold text-pink-300">¡Todo despejado, doctora!</p></div>` : state.todos.sort((a,b) => a.done - b.done).map(t => createTodoItemHTML(t)).join('');
-            return `<div><div class="bg-blue-600 text-white p-6 rounded-2xl mb-6 shadow-lg shadow-blue-200 relative overflow-hidden"><div class="relative z-10"><h2 class="text-3xl font-black mb-1">Ronda de Tareas</h2><p class="text-blue-100 text-lg">Lista de pendientes y objetivos.</p></div><i class="fa-solid fa-clipboard-check absolute -right-2 -bottom-4 text-9xl text-blue-500 opacity-50 rotate-12"></i></div><div class="flex gap-2 mb-6 bg-white p-2 rounded-xl shadow-sm border border-slate-100"><input type="text" id="new-todo" placeholder="Agregar nueva tarea..." class="flex-1 p-3 bg-transparent outline-none text-slate-700 font-medium placeholder-slate-400 text-lg" onkeypress="if(event.key === 'Enter') addTodo()"><button onclick="addTodo()" class="bg-pink-500 text-white w-12 rounded-lg hover:bg-pink-600 transition shadow-sm font-bold text-2xl">+</button></div><ul id="todo-list" class="space-y-3 pb-20">${todosHTML}</ul></div>`;
-        }
-        function createTodoItemHTML(todo) {
-            const doneClass = todo.done ? "opacity-60 bg-slate-50 border-slate-100" : "bg-white border-slate-100 border-l-4 border-l-pink-400";
-            const textClass = todo.done ? "line-through text-slate-400" : "text-slate-700 font-bold";
-            const iconClass = todo.done ? "fa-solid fa-circle-check text-green-500" : "fa-regular fa-circle text-slate-300 group-hover:text-pink-400";
-            return `<li id="todo-${todo.id}" class="flex items-center gap-4 p-4 rounded-xl shadow-sm border ${doneClass} transition-all group item-enter"><button onclick="toggleTodo(${todo.id})" class="text-2xl focus:outline-none transform active:scale-90 transition"><i id="icon-${todo.id}" class="${iconClass}"></i></button><span id="text-${todo.id}" class="flex-1 ${textClass} text-lg cursor-pointer select-none" onclick="toggleTodo(${todo.id})">${todo.text}</span><button onclick="confirmDelete('todo', ${todo.id})" class="w-8 h-8 rounded-full flex items-center justify-center text-slate-300 hover:bg-red-50 hover:text-red-500 transition"><i class="fa-solid fa-trash text-sm"></i></button></li>`;
-        }
-        function addTodo() {
-            const input = document.getElementById('new-todo');
-            const text = input.value.trim();
-            if (!text) return;
-            const newTodo = { id: Date.now(), text, done: false };
-            state.todos.unshift(newTodo);
-            saveData();
-            const list = document.getElementById('todo-list');
-            if(list) { const emptyMsg = document.getElementById('empty-todo-msg'); if(emptyMsg) emptyMsg.remove(); list.insertAdjacentHTML('afterbegin', createTodoItemHTML(newTodo)); }
-            input.value = '';
-            showToast("Tarea añadida", "fa-plus");
-        }
-        function toggleTodo(id) {
-            const todo = state.todos.find(t => t.id === id);
-            if (!todo) return;
-            todo.done = !todo.done;
-            saveData();
-            const item = document.getElementById(`todo-${id}`);
-            const icon = document.getElementById(`icon-${id}`);
-            const textSpan = document.getElementById(`text-${id}`);
-            if(item && icon && textSpan) { if(todo.done) { item.className = "flex items-center gap-4 p-4 rounded-xl shadow-sm border opacity-60 bg-slate-50 border-slate-100 transition-all group"; icon.className = "fa-solid fa-circle-check text-green-500"; textSpan.className = "flex-1 line-through text-slate-400 text-lg cursor-pointer select-none"; } else { item.className = "flex items-center gap-4 p-4 rounded-xl shadow-sm border bg-white border-slate-100 border-l-4 border-l-pink-400 transition-all group"; icon.className = "fa-regular fa-circle text-slate-300 group-hover:text-pink-400"; textSpan.className = "flex-1 text-slate-700 font-bold text-lg cursor-pointer select-none"; } }
-        }
-        function deleteTodo(id) {
-            state.todos = state.todos.filter(t => t.id !== id);
-            saveData();
-            const el = document.getElementById(`todo-${id}`);
-            if (el) { el.classList.add('item-leave'); setTimeout(() => { el.remove(); const list = document.getElementById('todo-list'); if(list && list.children.length === 0) { list.innerHTML = `<div id="empty-todo-msg" class="text-center py-12 opacity-50 fade-enter"><i class="fa-solid fa-list-check text-4xl mb-2 text-pink-200"></i><p class="text-lg font-bold text-pink-300">¡Todo despejado, doctora!</p></div>`; } }, 300); }
-        }
-
-        // --- RENDER VIEW ---
         function renderView(viewName) {
             const container = document.getElementById('app-container');
             state.view = viewName;
