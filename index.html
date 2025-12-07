@@ -137,7 +137,8 @@
     </header>
 
     <!-- Main Container -->
-    <main id="app-container" class="flex-1 overflow-y-auto p-4 pb-28 relative scroll-smooth"></main>
+    <!-- AGREGADO: hide-scrollbar al contenedor principal -->
+    <main id="app-container" class="flex-1 overflow-y-auto p-4 pb-28 relative scroll-smooth hide-scrollbar"></main>
 
     <!-- Nav Bar Flotante (Estilo Instrumental) -->
     <div class="fixed bottom-0 w-full z-30 pb-safe pointer-events-none">
@@ -655,13 +656,15 @@
                             <h2 class="text-2xl font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-clipboard-user text-blue-500"></i> Fichas</h2>
                             <button onclick="openPatientModal()" class="bg-blue-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-600 shadow-lg shadow-blue-200 transition"><i class="fa-solid fa-plus mr-1"></i> Ingresar</button>
                         </div>
-                        <div class="lg:flex-1 lg:overflow-y-auto lg:pr-1 w-full">
+                        <!-- AGREGADO: hide-scrollbar aquí -->
+                        <div class="lg:flex-1 lg:overflow-y-auto lg:pr-1 w-full hide-scrollbar">
                             ${patientsListContent}
                         </div>
                     </div>
 
                     <!-- WRAPPER WIDGETS -->
-                    <div class="contents lg:flex lg:flex-col lg:gap-6 lg:order-2 lg:col-span-2 lg:overflow-y-auto lg:p-6 lg:h-full">
+                    <!-- AGREGADO: hide-scrollbar aquí -->
+                    <div class="contents lg:flex lg:flex-col lg:gap-6 lg:order-2 lg:col-span-2 lg:overflow-y-auto lg:p-6 lg:h-full hide-scrollbar">
                         
                         <!-- 1. Perfil (Orden 1) -->
                         <div class="order-1 flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 shrink-0">
@@ -852,8 +855,9 @@
         // --- NOTES SYSTEM (Estilo Recetario) ---
         function getNotesHTML() {
             // Generamos el HTML de las carpetas pero lo insertaremos en la columna derecha
+            // CORREGIDO: no-scrollbar a hide-scrollbar
             const foldersHTML = `
-                <div class="flex overflow-x-auto gap-2 pb-2 mb-0 no-scrollbar" id="folders-container">
+                <div class="flex overflow-x-auto gap-2 pb-2 mb-0 hide-scrollbar" id="folders-container">
                     ${generateFoldersHTML()}
                 </div>
             `;
@@ -909,7 +913,8 @@
                             </div>
                             
                             <!-- Lista de Notas (Grid en desktop, lista en móvil) -->
-                            <div class="flex-1 lg:overflow-y-auto pr-1 pb-20 lg:pb-0">
+                            <!-- AGREGADO: hide-scrollbar aquí -->
+                            <div class="flex-1 lg:overflow-y-auto pr-1 pb-20 lg:pb-0 hide-scrollbar">
                                 <div id="notes-list" class="grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-min">
                                     ${generateNotesListHTML()}
                                 </div>
