@@ -120,10 +120,10 @@
         /* Estilos específicos para el visor PDF en iOS */
         #pdf-scroll-container {
             -webkit-overflow-scrolling: touch; /* Scroll suave nativo */
-            touch-action: pan-x pan-y; /* Permitir scroll en ambas direcciones */
+            /* Eliminamos touch-action: pan-x pan-y para dejar el comportamiento por defecto */
         }
         canvas {
-            touch-action: none; /* Dejamos que JS maneje el gesto de pellizcar */
+            /* Eliminamos touch-action: none para permitir el scroll natural */
             transform-origin: 0 0;
         }
     </style>
@@ -225,13 +225,17 @@
             <button onclick="manualZoom(0.2)" class="w-10 h-10 flex items-center justify-center bg-slate-600 rounded-lg hover:bg-slate-500 transition active:scale-95"><i class="fa-solid fa-plus text-xs"></i></button>
         </div>
 
-        <!-- Visor con soporte de gestos -->
+        <!-- Visor -->
         <div class="flex-1 bg-slate-200 relative overflow-auto flex justify-center items-start p-4" id="pdf-scroll-container">
+            <!-- Canvas inicial -->
             <canvas id="the-canvas" class="shadow-2xl transition-transform duration-100 ease-out origin-top-left"></canvas>
             
-            <!-- Loader -->
-            <div id="pdf-loader" class="absolute inset-0 flex items-center justify-center bg-white/80 z-10 hidden">
-                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500"></div>
+            <!-- Loader (Ahora solo visible en cargas muy lentas iniciales) -->
+            <div id="pdf-loader" class="absolute inset-0 flex items-center justify-center bg-transparent pointer-events-none z-10 hidden">
+                <!-- Spinner pequeño sin fondo para no tapar la página anterior -->
+                <div class="bg-slate-800/80 p-3 rounded-full shadow-lg">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                </div>
             </div>
         </div>
         
@@ -253,7 +257,7 @@
         let selectedDateKey = null; 
         let tempShiftType = null;
 
-        // --- SISTEMA DE ALMACENAMIENTO LOCAL (RESTAURADO) ---
+        // --- SISTEMA DE ALMACENAMIENTO LOCAL ---
         const idbKeyval = {
             async get(key) {
                 return new Promise((resolve, reject) => {
@@ -350,75 +354,88 @@
         let renderTask = null;
         let currentZoom = 1.0;
         let baseCanvasWidth = null;
-        let isPinching = false;
-        let initialPinchDist = 0;
+        // Eliminado isPinching y initialPinchDist
 
-        // --- PDF RENDER (Optimizado para Nitidez Extrema en iOS) ---
+        // --- PDF RENDER (DOBLE BÚFER PARA ELIMINAR PARPADEO) ---
         function renderPage(num) {
             pageRendering = true;
-            if(renderTask) renderTask.cancel();
+            
+            // Cancelar render anterior si existe
+            if(renderTask) {
+                renderTask.cancel();
+            }
 
+            // Loader sutil si es necesario, pero sin tapar el contenido anterior
             const loader = document.getElementById('pdf-loader');
-            loader.classList.remove('hidden'); // Mostrar loader mientras renderiza alta calidad
-
+            
             pdfDoc.getPage(num).then(function(page) {
-                const canvas = document.getElementById('the-canvas');
-                const ctx = canvas.getContext('2d');
                 const container = document.getElementById('pdf-scroll-container');
+                const oldCanvas = document.getElementById('the-canvas');
                 
-                // 1. Obtener ancho visual disponible (CSS pixels)
-                // Restamos un poco de padding para asegurar que no se corte
+                // --- CÁLCULOS DE DIMENSIONES (HiDPI para iOS) ---
                 const visualWidth = Math.min(container.clientWidth - 20, 1000); 
-                
-                // 2. Calcular 'Pixel Ratio' Efectivo
-                // En iPhone/Móviles, devicePixelRatio suele ser 2 o 3. 
-                // Multiplicamos por un factor extra (1.5 o 2) para "Sobremuestrear" (Super-sampling)
-                // Esto hace que el canvas interno sea enorme y al reducirse se vea cristalino.
                 const dpr = window.devicePixelRatio || 1;
-                const sharpFactor = (dpr < 2) ? 3 : 2; // Si es pantalla normal, forzamos x3. Si es retina, x2.
+                const sharpFactor = (dpr < 2) ? 3 : 2; 
                 
-                // 3. Calcular escala de renderizado final
                 const originalViewport = page.getViewport({scale: 1.0});
                 const fitScale = visualWidth / originalViewport.width;
                 const renderScale = fitScale * dpr * sharpFactor;
 
-                // 4. Obtener viewport con la escala GIGANTE
                 const viewport = page.getViewport({scale: renderScale});
 
-                // 5. Ajustar dimensiones del Canvas (Físicas vs Estilo)
-                canvas.width = viewport.width;   // Píxeles reales (muchos)
-                canvas.height = viewport.height;
+                // --- CREAR NUEVO CANVAS (EN MEMORIA) ---
+                const newCanvas = document.createElement('canvas');
+                newCanvas.id = 'the-canvas'; // Se asignará el ID al insertarlo en DOM
+                newCanvas.className = 'shadow-2xl transition-transform duration-100 ease-out origin-top-left';
                 
-                // Fijar dimensiones visuales iniciales (CSS) para que quepa en pantalla
-                canvas.style.width = "100%";
-                canvas.style.maxWidth = `${visualWidth}px`;
-                canvas.style.height = "auto";
+                // Dimensiones físicas (Altas para Retina)
+                newCanvas.width = viewport.width;
+                newCanvas.height = viewport.height;
                 
-                // Guardar ancho base para el zoom manual posterior
-                baseCanvasWidth = visualWidth; // Guardamos el ancho LÓGICO/VISUAL
+                // Dimensiones visuales (CSS)
+                newCanvas.style.width = "100%";
+                newCanvas.style.maxWidth = `${visualWidth}px`;
+                newCanvas.style.height = "auto";
+                
+                // Eliminamos touch-action: none para permitir scroll natural
+                // newCanvas.style.touchAction = "none"; 
 
-                // 6. Renderizar
+                // Guardar referencia global para el zoom 
+                baseCanvasWidth = visualWidth; 
+
+                const ctx = newCanvas.getContext('2d');
                 const renderContext = {
                     canvasContext: ctx,
                     viewport: viewport
                 };
                 
+                // Renderizar en el canvas oculto
                 renderTask = page.render(renderContext);
+
                 renderTask.promise.then(function() {
+                    // --- INTERCAMBIO (SWAP) ---
+                    if (oldCanvas && oldCanvas.parentNode) {
+                        oldCanvas.replaceWith(newCanvas);
+                    } else {
+                        container.insertBefore(newCanvas, loader); 
+                    }
+
                     pageRendering = false;
                     renderTask = null;
                     loader.classList.add('hidden');
-                    // Restaurar zoom a 1 para asegurar alineación
-                    currentZoom = 1.0;
+                    currentZoom = 1.0; // Reset Zoom en nueva página
                     
-                    if (pageNumPending !== null) { renderPage(pageNumPending); pageNumPending = null; }
+                    document.getElementById('pdf-page-num').value = num;
+
+                    if (pageNumPending !== null) {
+                        renderPage(pageNumPending);
+                        pageNumPending = null;
+                    }
                 }).catch(e => { 
                     if(e.name !== "RenderingCancelledException") console.error(e); 
                     pageRendering = false; 
-                    loader.classList.add('hidden');
                 });
             });
-            document.getElementById('pdf-page-num').value = num;
         }
 
         function updateCanvasStyle(zoomLevel) {
@@ -428,12 +445,8 @@
             // Limitamos el zoom
             currentZoom = Math.min(Math.max(zoomLevel, 1.0), 4.0);
             
-            // Aplicamos el tamaño vía CSS width.
-            // Como el canvas interno ya es enorme (HiDPI), hacer zoom CSS
-            // simplemente revela la calidad que ya renderizamos, sin pixelarse (hasta cierto punto).
             const newCSSWidth = baseCanvasWidth * currentZoom;
             
-            // Importante: Quitar 'maxWidth' si hacemos zoom para permitir que crezca
             if(currentZoom > 1.0) {
                 canvas.style.maxWidth = 'none';
                 canvas.style.width = `${newCSSWidth}px`;
@@ -443,7 +456,7 @@
             }
         }
 
-        // --- GESTIÓN DE EVENTOS TÁCTILES Y ZOOM (Ajustado) ---
+        // --- GESTIÓN DE EVENTOS Y ZOOM ---
         function setupGlobalListeners() {
             document.addEventListener('keydown', (e) => {
                 if(!document.getElementById('pdf-reader-modal').classList.contains('hidden')) {
@@ -455,49 +468,20 @@
 
             const container = document.getElementById('pdf-scroll-container');
             
-            container.addEventListener('touchstart', function(e) {
-                if (e.touches.length === 2) {
-                    isPinching = true;
-                    initialPinchDist = Math.hypot(
-                        e.touches[0].pageX - e.touches[1].pageX,
-                        e.touches[0].pageY - e.touches[1].pageY
-                    );
-                }
-            }, {passive: false});
+            // --- Eliminada la lógica de pellizcar (Pinch-to-zoom) ---
 
-            container.addEventListener('touchmove', function(e) {
-                if (isPinching && e.touches.length === 2) {
-                    e.preventDefault(); 
-                    const dist = Math.hypot(
-                        e.touches[0].pageX - e.touches[1].pageX,
-                        e.touches[0].pageY - e.touches[1].pageY
-                    );
-
-                    if (initialPinchDist > 0) {
-                        const delta = dist / initialPinchDist;
-                        const newZoom = currentZoom * delta; // Respuesta más directa
-                        updateCanvasStyle(newZoom);
-                        // No reseteamos initialPinchDist aquí para mantener la referencia original del gesto
-                        // Opcional: initialPinchDist = dist; si queremos incremental
-                    }
-                }
-            }, {passive: false});
-
-            container.addEventListener('touchend', function(e) {
-                if (e.touches.length < 2) {
-                    isPinching = false;
-                }
-            });
-
-            // Swipe
+            // Swipe Simplificado (Solo cuando no hay zoom)
             let touchStartX = 0;
-            container.addEventListener('touchstart', e => { if(e.touches.length === 1) touchStartX = e.changedTouches[0].screenX; }, {passive: true});
+            container.addEventListener('touchstart', e => { 
+                if(e.touches.length === 1) touchStartX = e.changedTouches[0].screenX; 
+            }, {passive: true});
+            
             container.addEventListener('touchend', e => {
-                // Solo permitir swipe si no estamos con zoom
-                if(e.touches.length === 0 && !isPinching && currentZoom <= 1.05) {
+                // Solo permitir cambio de página por swipe si no hay zoom aplicado
+                if(e.touches.length === 0 && currentZoom <= 1.05) {
                     const touchEndX = e.changedTouches[0].screenX;
-                    if (touchEndX < touchStartX - 80) changePdfPage(1);
-                    if (touchEndX > touchStartX + 80) changePdfPage(-1);
+                    if (touchEndX < touchStartX - 80) changePdfPage(1); // Swipe Izquierda -> Siguiente
+                    if (touchEndX > touchStartX + 80) changePdfPage(-1); // Swipe Derecha -> Anterior
                 }
             }, {passive: true});
         }
@@ -517,15 +501,32 @@
             const modal = document.getElementById('pdf-reader-modal');
             const title = document.getElementById('pdf-reader-title');
             const loader = document.getElementById('pdf-loader');
-            const canvas = document.getElementById('the-canvas');
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const oldCanvas = document.getElementById('the-canvas');
+            if(oldCanvas) {
+                const ctx = oldCanvas.getContext('2d');
+                ctx.clearRect(0, 0, oldCanvas.width, oldCanvas.height);
+                oldCanvas.style.width = '100%'; // Reset visual
+            }
+
             title.innerHTML = `<i class="fa-solid fa-file-pdf mr-2 text-red-400"></i> <span class="truncate">${pdf.title}</span>`;
+            
             loader.classList.remove('hidden');
             modal.classList.remove('hidden');
             modal.focus();
-            currentZoom = 1.0; // Reset Zoom
-            try { const loadingTask = pdfjsLib.getDocument(pdf.data); pdfDoc = await loadingTask.promise; document.getElementById('pdf-page-count').textContent = pdfDoc.numPages; pageNum = 1; renderPage(pageNum); } catch (error) { console.error(error); showToast("Error al abrir PDF", "fa-bug"); closePdfReader(); }
+            currentZoom = 1.0; 
+            
+            try { 
+                const loadingTask = pdfjsLib.getDocument(pdf.data); 
+                pdfDoc = await loadingTask.promise; 
+                document.getElementById('pdf-page-count').textContent = pdfDoc.numPages; 
+                pageNum = 1; 
+                renderPage(pageNum); 
+            } catch (error) { 
+                console.error(error); 
+                showToast("Error al abrir PDF", "fa-bug"); 
+                closePdfReader(); 
+            }
         }
 
         function closePdfReader() {
@@ -593,6 +594,7 @@
             let shiftCardClass = "bg-white border-slate-200 text-slate-500"; let shiftText = "Sin turnos asignados"; let shiftSubText = "Revisa tu calendario"; let shiftIcon = "fa-calendar-check"; let cardLabel = "Asignación de Hoy";
             if (shift) { if (shift.type === 'guardia') { shiftCardClass = "bg-red-50 border-red-100 text-red-600"; shiftText = "PASO"; shiftSubText = "Visita de Sala"; shiftIcon = "fa-user-doctor"; } else if (shift.type === 'dia') { shiftCardClass = "bg-blue-50 border-blue-100 text-blue-600"; shiftText = "TURNO DÍA"; shiftSubText = "Jornada Diurna"; shiftIcon = "fa-sun"; } else if (shift.type === 'noche') { shiftCardClass = "bg-indigo-50 border-indigo-100 text-indigo-600"; shiftText = "TURNO NOCHE"; shiftSubText = "Jornada Nocturna"; shiftIcon = "fa-moon"; } else if (shift.type === 'post') { shiftCardClass = "bg-orange-50 border-orange-100 text-orange-600"; shiftText = "DÍA DE ESTUDIO"; shiftSubText = "Tiempo de estudio"; shiftIcon = "fa-book-open"; } else if (shift.type === 'libre') { shiftCardClass = "bg-emerald-50 border-emerald-100 text-emerald-600"; shiftText = "DÍA LIBRE"; shiftSubText = "Recarga energías"; shiftIcon = "fa-mug-hot"; } if (isNextShift) { cardLabel = "Próxima Asignación"; shiftSubText = `El ${nextDateStr}`; } else { cardLabel = "Asignación de Hoy"; } } else { cardLabel = "Estado Actual"; }
             const profileImageSrc = state.userProfileImage || 'catita.png'; const displayUserName = state.userName || 'Dra.'; const patientsListContent = generatePatientsHTML();
+            // AJUSTE AQUÍ: Se agregó lg:h-[calc(100vh-140px)] a las columnas para forzar el scroll independiente en escritorio
             return `<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:h-full min-h-full pb-8"><div class="order-4 lg:order-1 lg:col-span-1 lg:min-w-[350px] flex flex-col lg:h-[calc(100vh-140px)] h-auto"><div class="flex justify-between items-center mb-4 sticky top-0 bg-[#f8fafc] z-10 py-2"><h2 class="text-3xl font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-clipboard-user text-blue-500"></i> Fichas</h2><button onclick="openPatientModal()" class="bg-blue-500 text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-blue-600 shadow-lg shadow-blue-200 transition"><i class="fa-solid fa-plus mr-1"></i> Ingresar</button></div><div id="patients-list-container" class="lg:flex-1 lg:overflow-y-auto lg:pr-1 w-full hide-scrollbar">${patientsListContent}</div></div><div class="contents lg:flex lg:flex-col lg:gap-6 lg:order-2 lg:col-span-2 lg:overflow-y-auto lg:p-6 lg:h-[calc(100vh-140px)] hide-scrollbar"><div class="order-1 flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 shrink-0"><div class="relative w-20 h-20 shrink-0 group cursor-pointer"><div class="absolute inset-0 bg-pink-100 rounded-full animate-pulse"></div><label for="profile-upload" class="cursor-pointer"><img src="${profileImageSrc}" class="w-20 h-20 rounded-full object-cover border-2 border-white shadow relative z-10 group-hover:opacity-80 transition" onerror="this.src='https://via.placeholder.com/64?text=Dra'"><div class="absolute inset-0 z-20 flex items-center justify-center bg-black/30 rounded-full opacity-0 group-hover:opacity-100 transition"><i class="fa-solid fa-camera text-white text-sm"></i></div></label><input type="file" id="profile-upload" class="hidden" accept="image/*" onchange="updateProfileImage(this)"><div class="absolute -bottom-1 -right-1 bg-green-400 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center z-20 pointer-events-none"><i class="fa-solid fa-check text-xs text-white"></i></div></div><div><p class="text-xs text-slate-400 font-bold uppercase tracking-wider">Estado Actual</p><h2 class="text-2xl font-bold text-slate-700 leading-tight flex items-center gap-2 cursor-pointer hover:text-pink-600 transition" onclick="openNameModal()" title="Clic para editar nombre">Hola, ${displayUserName} <i class="fa-solid fa-pen-to-square text-sm text-slate-300"></i></h2><p class="text-lg text-pink-500 font-medium italic">"${greeting}"</p></div></div><div onclick="renderView('turnario')" class="order-2 cursor-pointer relative overflow-hidden rounded-2xl border-2 ${shiftCardClass.replace('bg-', 'border-').replace('text-', 'border-')} p-0 transition-transform active:scale-95 shadow-sm shrink-0"><div class="${shiftCardClass} p-6 relative z-10"><div class="flex justify-between items-start"><div><span class="text-xs font-bold uppercase tracking-widest opacity-70 mb-1 block">${cardLabel}</span><h3 class="text-3xl font-black tracking-tight mb-1">${shiftText}</h3><p class="text-lg font-medium opacity-80 flex items-center gap-1"><i class="fa-solid fa-circle-info text-sm"></i> ${shiftSubText}</p></div><div class="w-14 h-14 rounded-xl bg-white/50 flex items-center justify-center backdrop-blur-sm shadow-sm"><i class="fa-solid ${shiftIcon} text-3xl opacity-90"></i></div></div></div><div class="absolute -right-4 -bottom-8 opacity-10 pointer-events-none"><i class="fa-solid fa-heart-pulse text-9xl"></i></div></div>${reminderHTML}<div class="order-5 grid grid-cols-2 gap-3 shrink-0"><div onclick="renderView('todo')" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center gap-2 hover:border-pink-200 transition group cursor-pointer"><div class="w-12 h-12 rounded-full bg-pink-50 text-pink-500 flex items-center justify-center group-hover:scale-110 transition"><i class="fa-solid fa-clipboard-list text-2xl"></i></div><span class="text-sm font-bold text-slate-600">Pendientes (${pendingTodos.length})</span></div><div onclick="renderView('notes')" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center gap-2 hover:border-blue-200 transition group cursor-pointer"><div class="w-12 h-12 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center group-hover:scale-110 transition"><i class="fa-solid fa-file-medical text-2xl"></i></div><span class="text-sm font-bold text-slate-600">Mis Apuntes</span></div></div><div class="order-6 pt-4 border-t border-slate-200/60 pb-8 shrink-0"><p class="text-xs text-center text-slate-400 uppercase tracking-widest font-bold mb-4">Equipo Médico de Guardia</p><div class="flex justify-center gap-6"><div class="relative group"><div class="absolute -inset-1 bg-gradient-to-r from-pink-400 to-purple-400 rounded-full blur opacity-25 group-hover:opacity-50 transition"></div><img src="catita.png" class="w-24 h-24 object-contain relative z-10 drop-shadow-lg transform hover:scale-110 transition duration-300" onerror="this.style.display='none'"></div><div class="relative group"><div class="absolute -inset-1 bg-gradient-to-r from-blue-400 to-teal-400 rounded-full blur opacity-25 group-hover:opacity-50 transition"></div><img src="catita2.png" class="w-24 h-24 object-contain relative z-10 drop-shadow-lg transform hover:scale-110 transition duration-300" onerror="this.style.display='none'"></div></div></div></div></div>`;
         }
 
