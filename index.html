@@ -287,6 +287,24 @@
         </div>
     </div>
 
+    <!-- Modal Nuevo Paciente (NUEVO) -->
+    <div id="patient-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 border-t-4 border-blue-400">
+            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-user-injured text-blue-500"></i> Ingresar Paciente</h3>
+            <div class="space-y-3">
+                <input type="text" id="patient-name" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none text-sm font-semibold" placeholder="Nombre del Paciente">
+                <div class="flex gap-3">
+                    <input type="text" id="patient-room" class="w-1/3 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none text-sm font-semibold" placeholder="Cama/Hab">
+                    <input type="text" id="patient-dx" class="w-2/3 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none text-sm font-semibold" placeholder="Diagnóstico (Breve)">
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 mt-6">
+                <button onclick="closePatientModal()" class="px-4 py-2 text-slate-400 hover:text-slate-600 font-bold text-sm">Cancelar</button>
+                <button onclick="createPatient()" class="px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 font-bold text-sm shadow-lg shadow-blue-200">Ingresar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast -->
     <div id="toast" class="fixed top-24 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-xl opacity-0 transition-all duration-300 pointer-events-none z-[70] flex items-center gap-3 text-sm font-bold translate-y-4">
         <div class="w-6 h-6 bg-pink-500 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-check"></i></div>
@@ -302,8 +320,9 @@
             folders: [],
             links: [],
             shifts: {},
+            patients: [], // Nueva lista de pacientes
             userProfileImage: null, 
-            userName: 'Dra.', // Valor por defecto
+            userName: 'Dra.', 
             currentDate: new Date(),
             currentFolderId: 'all',
             editingNoteId: null
@@ -324,7 +343,7 @@
                     if (!parsed.notes) parsed.notes = [];
                     if (!parsed.links) parsed.links = [];
                     if (!parsed.folders) parsed.folders = [{id: 'general', name: 'General'}];
-                    // Asegurar que exista userName si cargamos datos antiguos
+                    if (!parsed.patients) parsed.patients = []; // Inicializar pacientes si no existen
                     if (!parsed.userName) parsed.userName = 'Dra.'; 
                     state = { ...state, ...parsed, currentDate: new Date() }; 
                 } catch (e) { 
@@ -345,6 +364,7 @@
             localStorage.setItem(APP_KEY, JSON.stringify(toSave));
         }
 
+        // ... (Funciones de Toast, Backup, Imagen, Nombre igual que antes) ...
         function showToast(msg, icon = 'fa-info-circle') {
             const toast = document.getElementById('toast');
             document.getElementById('toast-msg').innerText = msg;
@@ -357,124 +377,125 @@
             }, 3000);
         }
 
-        // --- MANEJO DE PERFIL ---
         async function updateProfileImage(input) {
             if (input.files && input.files[0]) {
                 try {
                     const base64 = await processImage(input.files[0]);
                     state.userProfileImage = base64;
                     saveData();
-                    // Refrescar solo la imagen o la vista completa
                     renderView('dashboard');
                     showToast("Foto actualizada", "fa-camera");
-                } catch (e) {
-                    showToast("Error al procesar imagen", "fa-triangle-exclamation");
+                } catch (e) { showToast("Error al procesar imagen", "fa-triangle-exclamation"); }
+            }
+        }
+
+        function openNameModal() { document.getElementById('new-user-name').value = state.userName || ''; document.body.classList.add('modal-open'); document.getElementById('name-modal').classList.remove('hidden'); document.getElementById('new-user-name').focus(); }
+        function closeNameModal() { document.body.classList.remove('modal-open'); document.getElementById('name-modal').classList.add('hidden'); }
+        function saveName() { const name = document.getElementById('new-user-name').value.trim(); if (name) { state.userName = name; saveData(); renderView('dashboard'); closeNameModal(); showToast("Nombre actualizado", "fa-id-card"); } }
+
+        function openBackupModal() { document.getElementById('backup-modal').classList.remove('hidden'); }
+        function closeBackupModal() { document.getElementById('backup-modal').classList.add('hidden'); document.getElementById('backup-file-input').value = ''; }
+        function downloadBackupFile() { const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state)); const downloadAnchorNode = document.createElement('a'); const fileName = "intermona_backup_" + new Date().toISOString().slice(0,10) + ".json"; downloadAnchorNode.setAttribute("href", dataStr); downloadAnchorNode.setAttribute("download", fileName); document.body.appendChild(downloadAnchorNode); downloadAnchorNode.click(); downloadAnchorNode.remove(); showToast("Backup Descargado", "fa-download"); }
+        function exportDataToClipboard() { const textArea = document.createElement("textarea"); textArea.value = JSON.stringify(state); textArea.style.position = "fixed"; textArea.style.left = "-9999px"; document.body.appendChild(textArea); textArea.select(); try { if(document.execCommand('copy')) showToast("Copiado al portapapeles", "fa-clipboard-check"); else showToast("Error al copiar", "fa-times"); } catch (err) { showToast("Error al copiar", "fa-times"); } document.body.removeChild(textArea); }
+        function importBackupFromFile(input) { const file = input.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function(e) { try { const data = JSON.parse(e.target.result); if (data && (data.todos || data.notes || data.shifts)) { showConfirmModal("Restaurar Datos", "Se sobrescribirá toda la información actual.", "Restaurar", function() { state = { ...state, ...data, currentDate: new Date() }; saveData(); closeConfirmModal(); closeBackupModal(); state.view = null; renderView('dashboard'); showToast("Base de datos actualizada", "fa-check-double"); }); } else { showToast("Archivo inválido", "fa-triangle-exclamation"); } } catch(err) { showToast("Error leyendo archivo", "fa-bug"); } input.value = ''; }; reader.readAsText(file); }
+
+
+        // --- FUNCIONES DE PACIENTES (NUEVO) ---
+        function openPatientModal() { document.body.classList.add('modal-open'); document.getElementById('patient-modal').classList.remove('hidden'); document.getElementById('patient-name').focus(); }
+        function closePatientModal() { document.body.classList.remove('modal-open'); document.getElementById('patient-modal').classList.add('hidden'); document.getElementById('patient-name').value=''; document.getElementById('patient-room').value=''; document.getElementById('patient-dx').value=''; }
+        
+        function createPatient() {
+            const name = document.getElementById('patient-name').value.trim();
+            const room = document.getElementById('patient-room').value.trim();
+            const dx = document.getElementById('patient-dx').value.trim();
+            
+            if (!name) return;
+            
+            const newPatient = {
+                id: Date.now(),
+                name,
+                room: room || '---',
+                dx: dx || 'En estudio',
+                tasks: []
+            };
+            
+            state.patients.push(newPatient);
+            saveData();
+            closePatientModal();
+            renderView('dashboard');
+            showToast("Paciente Ingresado", "fa-user-plus");
+        }
+
+        function deletePatient(id) {
+            showConfirmModal("¿Dar de alta?", "Se eliminará la ficha y pendientes.", "Dar de Alta", () => {
+                state.patients = state.patients.filter(p => p.id !== id);
+                saveData();
+                closeConfirmModal();
+                renderView('dashboard');
+                showToast("Paciente dado de alta", "fa-user-minus");
+            });
+        }
+
+        function addPatientTask(patientId) {
+            const input = document.getElementById(`new-task-${patientId}`);
+            const text = input.value.trim();
+            if(!text) return;
+            
+            const patient = state.patients.find(p => p.id === patientId);
+            if(patient) {
+                patient.tasks.push({ id: Date.now(), text, done: false });
+                saveData();
+                // Re-render parcial o total. Total es más seguro por ahora.
+                renderView('dashboard'); 
+            }
+        }
+        
+        function togglePatientTask(patientId, taskId) {
+            const patient = state.patients.find(p => p.id === patientId);
+            if(patient) {
+                const task = patient.tasks.find(t => t.id === taskId);
+                if(task) {
+                    task.done = !task.done;
+                    saveData();
+                    renderView('dashboard');
                 }
             }
         }
 
-        // --- MANEJO DE NOMBRE DE USUARIO ---
-        function openNameModal() {
-            document.getElementById('new-user-name').value = state.userName || '';
-            document.body.classList.add('modal-open');
-            document.getElementById('name-modal').classList.remove('hidden');
-            document.getElementById('new-user-name').focus();
+        function deletePatientTask(patientId, taskId) {
+             const patient = state.patients.find(p => p.id === patientId);
+             if(patient) {
+                 patient.tasks = patient.tasks.filter(t => t.id !== taskId);
+                 saveData();
+                 renderView('dashboard');
+             }
         }
 
-        function closeNameModal() {
-            document.body.classList.remove('modal-open');
-            document.getElementById('name-modal').classList.add('hidden');
-        }
-
-        function saveName() {
-            const name = document.getElementById('new-user-name').value.trim();
-            if (name) {
-                state.userName = name;
-                saveData();
-                renderView('dashboard');
-                closeNameModal();
-                showToast("Nombre actualizado", "fa-id-card");
-            }
-        }
-
-        // --- SISTEMA DE BACKUP ---
-        function openBackupModal() { document.getElementById('backup-modal').classList.remove('hidden'); }
-        function closeBackupModal() { document.getElementById('backup-modal').classList.add('hidden'); document.getElementById('backup-file-input').value = ''; }
-
-        function downloadBackupFile() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
-            const downloadAnchorNode = document.createElement('a');
-            const fileName = "intermona_backup_" + new Date().toISOString().slice(0,10) + ".json";
-            downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", fileName);
-            document.body.appendChild(downloadAnchorNode);
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
-            showToast("Backup Descargado", "fa-download");
-        }
-
-        function exportDataToClipboard() {
-            const textArea = document.createElement("textarea");
-            textArea.value = JSON.stringify(state);
-            textArea.style.position = "fixed"; textArea.style.left = "-9999px";
-            document.body.appendChild(textArea);
-            textArea.select();
-            try {
-                if(document.execCommand('copy')) showToast("Copiado al portapapeles", "fa-clipboard-check");
-                else showToast("Error al copiar", "fa-times");
-            } catch (err) { showToast("Error al copiar", "fa-times"); }
-            document.body.removeChild(textArea);
-        }
-
-        function importBackupFromFile(input) {
-            const file = input.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    if (data && (data.todos || data.notes || data.shifts)) {
-                        showConfirmModal(
-                            "Restaurar Datos",
-                            "Se sobrescribirá toda la información actual.",
-                            "Restaurar",
-                            function() {
-                                state = { ...state, ...data, currentDate: new Date() };
-                                saveData();
-                                closeConfirmModal();
-                                closeBackupModal();
-                                state.view = null;
-                                renderView('dashboard');
-                                showToast("Base de datos actualizada", "fa-check-double");
-                            }
-                        );
-                    } else { showToast("Archivo inválido", "fa-triangle-exclamation"); }
-                } catch(err) { showToast("Error leyendo archivo", "fa-bug"); }
-                input.value = '';
-            };
-            reader.readAsText(file);
-        }
 
         // --- SISTEMA DE NAVEGACIÓN ---
         function renderView(viewName) {
             const container = document.getElementById('app-container');
-            if (state.view === viewName && container.childElementCount > 0) return; 
-
+            
             state.view = viewName;
             state.editingNoteId = null; 
             
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 const icon = btn.querySelector('i');
-                const text = btn.querySelector('span');
-                
-                if(btn.dataset.target === viewName) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
+                if(btn.dataset.target === viewName) btn.classList.add('active');
+                else btn.classList.remove('active');
             });
 
             let contentHTML = '';
+            // CAMBIO CLAVE: Dashboard ahora es 'w-full' (ancho completo) y NO tiene 'mx-auto' ni 'max-w'
+            // Esto asegura que el contenido empiece desde el borde izquierdo real.
+            let containerClass = "fade-enter "; 
+            
+            if (viewName === 'dashboard') {
+                containerClass += "w-full h-full"; // Ocupar todo el espacio
+            } else {
+                containerClass += "max-w-md mx-auto"; // Las otras vistas siguen centradas
+            }
+
             try {
                 switch(viewName) {
                     case 'dashboard': contentHTML = getDashboardHTML(); break;
@@ -490,7 +511,7 @@
             }
 
             const wrapper = document.createElement('div');
-            wrapper.className = "fade-enter max-w-md mx-auto";
+            wrapper.className = containerClass;
             wrapper.innerHTML = contentHTML;
 
             container.replaceChildren(wrapper);
@@ -503,13 +524,12 @@
             saveData();
         }
 
-        // --- DASHBOARD ---
+        // --- DASHBOARD (REDDISEÑADO - FULL WIDTH) ---
         function getDashboardHTML() {
             const today = new Date();
             const dateKey = today.toISOString().split('T')[0];
             let shift = state.shifts[dateKey];
             let isNextShift = false;
-            let daysUntil = 0;
             let nextDateStr = "";
 
             if (!shift) {
@@ -518,13 +538,12 @@
                     const nextDateKey = futureDates[0];
                     shift = state.shifts[nextDateKey];
                     isNextShift = true;
-                    const diffTime = Math.abs(new Date(nextDateKey) - new Date(dateKey));
-                    daysUntil = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                     const [y, m, d] = nextDateKey.split('-').map(Number);
                     nextDateStr = new Date(y, m - 1, d).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric' });
                 }
             }
 
+            // Datos para columna derecha (Widgets)
             let nextEvent = null;
             const sortedDates = Object.keys(state.shifts).sort();
             for (const d of sortedDates) {
@@ -539,167 +558,148 @@
                 const [y, m, d] = nextEvent.date.split('-').map(Number);
                 const isTodayEvent = nextEvent.date === dateKey;
                 const eventDateStr = new Date(y, m - 1, d).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' });
-                
                 reminderHTML = `
                     <div class="bg-gradient-to-r from-indigo-500 to-blue-500 text-white p-4 rounded-2xl shadow-lg shadow-indigo-200 flex items-center gap-4 relative overflow-hidden mb-5">
-                        <div class="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
-                            <i class="fa-solid fa-bell text-xl"></i>
-                        </div>
+                        <div class="bg-white/20 p-3 rounded-xl backdrop-blur-sm"><i class="fa-solid fa-bell text-xl"></i></div>
                         <div class="flex-1 z-10">
-                            <p class="text-[10px] uppercase tracking-wider opacity-80 font-bold">Recordatorio Médico</p>
+                            <p class="text-[10px] uppercase tracking-wider opacity-80 font-bold">Recordatorio</p>
                             <h4 class="font-bold text-lg leading-tight">${nextEvent.note}</h4>
-                            <p class="text-xs mt-1 font-medium opacity-90">
-                                <i class="fa-regular fa-calendar mr-1"></i> ${isTodayEvent ? 'HOY' : eventDateStr} • ${nextEvent.eventTime}
-                            </p>
+                            <p class="text-xs mt-1 font-medium opacity-90"><i class="fa-regular fa-calendar mr-1"></i> ${isTodayEvent ? 'HOY' : eventDateStr} • ${nextEvent.eventTime}</p>
                         </div>
-                        <i class="fa-solid fa-user-nurse absolute -right-2 -bottom-4 text-6xl text-white opacity-10 rotate-12"></i>
-                    </div>
-                `;
+                    </div>`;
             }
 
             const pendingTodos = (state.todos || []).filter(t => !t.done);
-            
-            const lovePhrases = [
-                "¡Turno exitoso, Dra!", "La mejor doctora 🫀", "¡A salvar vidas!",
-                "Vocación y corazón 🩷", "Medicina con amor", "¡Ánimo en la guardia!",
-                "Tu paciente favorito te extraña", "Estetoscopio listo 🩺", "Dra. Monita al rescate"
-            ];
+            const lovePhrases = ["¡Turno exitoso, Dra!", "La mejor doctora 🫀", "¡A salvar vidas!", "Vocación y corazón 🩷", "Dra. Monita al rescate"];
             const greeting = lovePhrases[Math.floor(Math.random() * lovePhrases.length)];
 
-            // Lógica de tarjetas de turno
             let shiftCardClass = "bg-white border-slate-200 text-slate-500";
             let shiftText = "Sin turnos asignados";
             let shiftSubText = "Revisa tu calendario";
             let shiftIcon = "fa-calendar-check"; 
-            let badgeClass = "hidden";
 
             if (shift) {
-                if (shift.type === 'guardia') { 
-                    shiftCardClass = "bg-red-50 border-red-100 text-red-600"; 
-                    shiftText = "GUARDIA 24H"; 
-                    shiftSubText = "Turno de Urgencias";
-                    shiftIcon = "fa-truck-medical"; 
-                    badgeClass = "bg-red-100 text-red-600";
-                }
-                else if (shift.type === 'dia') { 
-                    shiftCardClass = "bg-blue-50 border-blue-100 text-blue-600"; 
-                    shiftText = "TURNO DÍA"; 
-                    shiftSubText = "Jornada Diurna";
-                    shiftIcon = "fa-sun"; 
-                    badgeClass = "bg-blue-100 text-blue-600";
-                }
-                else if (shift.type === 'noche') { 
-                    shiftCardClass = "bg-indigo-50 border-indigo-100 text-indigo-600"; 
-                    shiftText = "TURNO NOCHE"; 
-                    shiftSubText = "Jornada Nocturna";
-                    shiftIcon = "fa-moon"; 
-                    badgeClass = "bg-indigo-100 text-indigo-600";
-                }
-                else if (shift.type === 'post') { 
-                    shiftCardClass = "bg-orange-50 border-orange-100 text-orange-600"; 
-                    shiftText = "POST-GUARDIA"; 
-                    shiftSubText = "Descanso obligatorio";
-                    shiftIcon = "fa-bed"; 
-                    badgeClass = "bg-orange-100 text-orange-600";
-                }
-                else if (shift.type === 'libre') { 
-                    shiftCardClass = "bg-emerald-50 border-emerald-100 text-emerald-600"; 
-                    shiftText = "DÍA LIBRE"; 
-                    shiftSubText = "Recarga energías";
-                    shiftIcon = "fa-mug-hot"; 
-                    badgeClass = "bg-emerald-100 text-emerald-600";
-                }
-
-                if (isNextShift && shift.type !== 'libre') {
-                     // Ajuste visual si es próximo
-                     shiftSubText = `Próximo: ${nextDateStr}`;
-                }
+                if (shift.type === 'guardia') { shiftCardClass = "bg-red-50 border-red-100 text-red-600"; shiftText = "GUARDIA 24H"; shiftSubText = "Turno de Urgencias"; shiftIcon = "fa-truck-medical"; }
+                else if (shift.type === 'dia') { shiftCardClass = "bg-blue-50 border-blue-100 text-blue-600"; shiftText = "TURNO DÍA"; shiftSubText = "Jornada Diurna"; shiftIcon = "fa-sun"; }
+                else if (shift.type === 'noche') { shiftCardClass = "bg-indigo-50 border-indigo-100 text-indigo-600"; shiftText = "TURNO NOCHE"; shiftSubText = "Jornada Nocturna"; shiftIcon = "fa-moon"; }
+                else if (shift.type === 'post') { shiftCardClass = "bg-orange-50 border-orange-100 text-orange-600"; shiftText = "POST-GUARDIA"; shiftSubText = "Descanso obligatorio"; shiftIcon = "fa-bed"; }
+                else if (shift.type === 'libre') { shiftCardClass = "bg-emerald-50 border-emerald-100 text-emerald-600"; shiftText = "DÍA LIBRE"; shiftSubText = "Recarga energías"; shiftIcon = "fa-mug-hot"; }
+                if (isNextShift && shift.type !== 'libre') shiftSubText = `Próximo: ${nextDateStr}`;
             }
 
-            // Imagen de perfil: Si existe en state, usarla, si no, catita.png
             const profileImageSrc = state.userProfileImage || 'catita.png';
             const displayUserName = state.userName || 'Dra.';
 
+            const patientsListHTML = (state.patients || []).length === 0 
+                ? `<div class="bg-white p-8 rounded-2xl border-2 border-dashed border-slate-200 text-center flex flex-col items-center justify-center h-48">
+                     <i class="fa-solid fa-bed-pulse text-4xl text-slate-200 mb-2"></i>
+                     <p class="text-slate-400 font-bold text-sm">Sin pacientes ingresados</p>
+                     <p class="text-slate-300 text-xs">Agrega uno para comenzar ronda</p>
+                   </div>`
+                : (state.patients || []).map(p => {
+                    const tasksHTML = p.tasks.map(t => `
+                        <div class="flex items-center gap-2 group/task mb-1">
+                            <button onclick="togglePatientTask(${p.id}, ${t.id})" class="text-sm ${t.done ? 'text-green-500' : 'text-slate-300 hover:text-pink-500'} transition"><i class="fa-${t.done ? 'solid' : 'regular'} fa-circle-check"></i></button>
+                            <span class="text-xs flex-1 ${t.done ? 'text-slate-400 line-through' : 'text-slate-600 font-medium'}">${t.text}</span>
+                            <button onclick="deletePatientTask(${p.id}, ${t.id})" class="text-slate-200 hover:text-red-400 opacity-0 group-hover/task:opacity-100 transition"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                    `).join('');
+
+                    return `
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition group relative mb-3">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <h4 class="font-bold text-slate-700 text-lg leading-none">${p.name}</h4>
+                                <div class="flex gap-2 mt-1">
+                                    <span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"><i class="fa-solid fa-bed mr-1"></i> ${p.room}</span>
+                                    <span class="bg-slate-50 text-slate-500 px-2 py-0.5 rounded text-[10px] font-bold uppercase truncate max-w-[120px]">${p.dx}</span>
+                                </div>
+                            </div>
+                            <button onclick="deletePatient(${p.id})" class="text-slate-300 hover:text-red-500 transition px-2"><i class="fa-solid fa-trash-can"></i></button>
+                        </div>
+                        
+                        <div class="mt-3 pl-1 border-l-2 border-slate-100">
+                            ${tasksHTML}
+                            <div class="flex items-center gap-2 mt-2">
+                                <input type="text" id="new-task-${p.id}" placeholder="+ Pendiente..." class="bg-transparent text-xs outline-none w-full placeholder-slate-300 focus:placeholder-blue-300 text-slate-600" onkeypress="if(event.key === 'Enter') addPatientTask(${p.id})">
+                                <button onclick="addPatientTask(${p.id})" class="text-blue-400 hover:text-blue-600 text-xs"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('');
+
+            // LAYOUT DIVIDIDO CLARO: IZQUIERDA (LISTA) - DERECHA (WIDGETS)
             return `
-                <div class="space-y-6">
-                    <!-- Sección de Identificación -->
-                    <div class="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                        <div class="relative w-16 h-16 shrink-0 group cursor-pointer">
-                            <div class="absolute inset-0 bg-pink-100 rounded-full animate-pulse"></div>
-                            
-                            <label for="profile-upload" class="cursor-pointer">
-                                <img src="${profileImageSrc}" class="w-16 h-16 rounded-full object-cover border-2 border-white shadow relative z-10 group-hover:opacity-80 transition" onerror="this.src='https://via.placeholder.com/64?text=Dra'">
-                                <!-- Overlay de cámara -->
-                                <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/30 rounded-full opacity-0 group-hover:opacity-100 transition">
-                                     <i class="fa-solid fa-camera text-white text-xs"></i>
-                                </div>
-                            </label>
-                            <input type="file" id="profile-upload" class="hidden" accept="image/*" onchange="updateProfileImage(this)">
-                            
-                            <div class="absolute -bottom-1 -right-1 bg-green-400 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center z-20 pointer-events-none">
-                                <i class="fa-solid fa-check text-[10px] text-white"></i>
-                            </div>
+                <div class="flex flex-col lg:flex-row gap-6 h-full">
+                    
+                    <!-- COLUMNA IZQUIERDA: PACIENTES (Ancho flexible, mínimo 350px en escritorio) -->
+                    <div class="lg:w-1/3 lg:min-w-[350px] flex flex-col h-full">
+                        <div class="flex justify-between items-center mb-4 sticky top-0 bg-[#f8fafc] z-10 py-2">
+                            <h2 class="text-2xl font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-clipboard-user text-blue-500"></i> Fichas</h2>
+                            <button onclick="openPatientModal()" class="bg-blue-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-600 shadow-lg shadow-blue-200 transition"><i class="fa-solid fa-plus mr-1"></i> Ingresar</button>
                         </div>
-                        <div>
-                            <p class="text-xs text-slate-400 font-bold uppercase tracking-wider">Estado Actual</p>
-                            <h2 class="text-xl font-bold text-slate-700 leading-tight flex items-center gap-2 cursor-pointer hover:text-pink-600 transition" onclick="openNameModal()" title="Clic para editar nombre">
-                                Hola, ${displayUserName} 
-                                <i class="fa-solid fa-pen-to-square text-xs text-slate-300"></i>
-                            </h2>
-                            <p class="text-sm text-pink-500 font-medium italic">"${greeting}"</p>
+                        <div class="flex-1 overflow-y-auto pr-1">
+                            ${patientsListHTML}
                         </div>
                     </div>
 
-                    <!-- Tarjeta de Turno -->
-                    <div onclick="renderView('turnario')" class="cursor-pointer relative overflow-hidden rounded-2xl border-2 ${shiftCardClass.replace('bg-', 'border-').replace('text-', 'border-')} p-0 transition-transform active:scale-95 shadow-sm">
-                        <div class="${shiftCardClass} p-5 relative z-10">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <span class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Asignación ${isNextShift ? 'Próxima' : 'de Hoy'}</span>
-                                    <h3 class="text-2xl font-black tracking-tight mb-1">${shiftText}</h3>
-                                    <p class="text-sm font-medium opacity-80 flex items-center gap-1"><i class="fa-solid fa-circle-info text-xs"></i> ${shiftSubText}</p>
+                    <!-- COLUMNA DERECHA: WIDGETS (Ocupa el resto) -->
+                    <div class="lg:flex-1 space-y-6 lg:overflow-y-auto lg:pr-2">
+                        
+                        <!-- Perfil -->
+                        <div class="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                            <div class="relative w-16 h-16 shrink-0 group cursor-pointer">
+                                <div class="absolute inset-0 bg-pink-100 rounded-full animate-pulse"></div>
+                                <label for="profile-upload" class="cursor-pointer">
+                                    <img src="${profileImageSrc}" class="w-16 h-16 rounded-full object-cover border-2 border-white shadow relative z-10 group-hover:opacity-80 transition" onerror="this.src='https://via.placeholder.com/64?text=Dra'">
+                                    <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/30 rounded-full opacity-0 group-hover:opacity-100 transition"><i class="fa-solid fa-camera text-white text-xs"></i></div>
+                                </label>
+                                <input type="file" id="profile-upload" class="hidden" accept="image/*" onchange="updateProfileImage(this)">
+                                <div class="absolute -bottom-1 -right-1 bg-green-400 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center z-20 pointer-events-none"><i class="fa-solid fa-check text-[10px] text-white"></i></div>
+                            </div>
+                            <div>
+                                <p class="text-xs text-slate-400 font-bold uppercase tracking-wider">Estado Actual</p>
+                                <h2 class="text-xl font-bold text-slate-700 leading-tight flex items-center gap-2 cursor-pointer hover:text-pink-600 transition" onclick="openNameModal()" title="Clic para editar nombre">Hola, ${displayUserName} <i class="fa-solid fa-pen-to-square text-xs text-slate-300"></i></h2>
+                                <p class="text-sm text-pink-500 font-medium italic">"${greeting}"</p>
+                            </div>
+                        </div>
+
+                        <!-- Turno -->
+                        <div onclick="renderView('turnario')" class="cursor-pointer relative overflow-hidden rounded-2xl border-2 ${shiftCardClass.replace('bg-', 'border-').replace('text-', 'border-')} p-0 transition-transform active:scale-95 shadow-sm">
+                            <div class="${shiftCardClass} p-5 relative z-10">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <span class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Asignación ${isNextShift ? 'Próxima' : 'de Hoy'}</span>
+                                        <h3 class="text-2xl font-black tracking-tight mb-1">${shiftText}</h3>
+                                        <p class="text-sm font-medium opacity-80 flex items-center gap-1"><i class="fa-solid fa-circle-info text-xs"></i> ${shiftSubText}</p>
+                                    </div>
+                                    <div class="w-12 h-12 rounded-xl bg-white/50 flex items-center justify-center backdrop-blur-sm shadow-sm"><i class="fa-solid ${shiftIcon} text-2xl opacity-90"></i></div>
                                 </div>
-                                <div class="w-12 h-12 rounded-xl bg-white/50 flex items-center justify-center backdrop-blur-sm shadow-sm">
-                                    <i class="fa-solid ${shiftIcon} text-2xl opacity-90"></i>
-                                </div>
+                            </div>
+                            <div class="absolute -right-4 -bottom-8 opacity-10 pointer-events-none"><i class="fa-solid fa-heart-pulse text-9xl"></i></div>
+                        </div>
+
+                        ${reminderHTML}
+
+                        <!-- Botones Rápidos -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div onclick="renderView('todo')" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center gap-2 hover:border-pink-200 transition group cursor-pointer">
+                                <div class="w-10 h-10 rounded-full bg-pink-50 text-pink-500 flex items-center justify-center group-hover:scale-110 transition"><i class="fa-solid fa-clipboard-list text-lg"></i></div>
+                                <span class="text-xs font-bold text-slate-600">Pendientes (${pendingTodos.length})</span>
+                            </div>
+                            <div onclick="renderView('notes')" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center gap-2 hover:border-blue-200 transition group cursor-pointer">
+                                <div class="w-10 h-10 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center group-hover:scale-110 transition"><i class="fa-solid fa-file-medical text-lg"></i></div>
+                                <span class="text-xs font-bold text-slate-600">Mis Apuntes</span>
                             </div>
                         </div>
-                        <!-- Decoración de fondo -->
-                        <div class="absolute -right-4 -bottom-8 opacity-10 pointer-events-none">
-                            <i class="fa-solid fa-heart-pulse text-9xl"></i>
-                        </div>
-                    </div>
 
-                    ${reminderHTML}
-
-                    <!-- Accesos Rápidos (Grid estilo botones de máquina) -->
-                    <div class="grid grid-cols-2 gap-3">
-                        <div onclick="renderView('todo')" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center gap-2 hover:border-pink-200 transition group cursor-pointer">
-                            <div class="w-10 h-10 rounded-full bg-pink-50 text-pink-500 flex items-center justify-center group-hover:scale-110 transition">
-                                <i class="fa-solid fa-clipboard-list text-lg"></i>
+                        <!-- Staff -->
+                        <div class="pt-4 border-t border-slate-200/60 pb-8">
+                             <p class="text-[10px] text-center text-slate-400 uppercase tracking-widest font-bold mb-4">Equipo Médico de Guardia</p>
+                            <div class="flex justify-center gap-6">
+                                 <div class="relative group"><div class="absolute -inset-1 bg-gradient-to-r from-pink-400 to-purple-400 rounded-full blur opacity-25 group-hover:opacity-50 transition"></div><img src="catita.png" class="w-20 h-20 object-contain relative z-10 drop-shadow-lg transform hover:scale-110 transition duration-300" onerror="this.style.display='none'"></div>
+                                 <div class="relative group"><div class="absolute -inset-1 bg-gradient-to-r from-blue-400 to-teal-400 rounded-full blur opacity-25 group-hover:opacity-50 transition"></div><img src="catita2.png" class="w-20 h-20 object-contain relative z-10 drop-shadow-lg transform hover:scale-110 transition duration-300" onerror="this.style.display='none'"></div>
                             </div>
-                            <span class="text-xs font-bold text-slate-600">Pendientes (${pendingTodos.length})</span>
-                        </div>
-                        <div onclick="renderView('notes')" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center gap-2 hover:border-blue-200 transition group cursor-pointer">
-                            <div class="w-10 h-10 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center group-hover:scale-110 transition">
-                                <i class="fa-solid fa-file-medical text-lg"></i>
-                            </div>
-                            <span class="text-xs font-bold text-slate-600">Mis Apuntes</span>
-                        </div>
-                    </div>
-
-                    <!-- Decoración "Staff" -->
-                    <div class="mt-8 pt-4 border-t border-slate-200/60">
-                         <p class="text-[10px] text-center text-slate-400 uppercase tracking-widest font-bold mb-4">Equipo Médico de Guardia</p>
-                        <div class="flex justify-center gap-6 pb-6">
-                             <div class="relative group">
-                                <div class="absolute -inset-1 bg-gradient-to-r from-pink-400 to-purple-400 rounded-full blur opacity-25 group-hover:opacity-50 transition"></div>
-                                <img src="catita.png" class="w-20 h-20 object-contain relative z-10 drop-shadow-lg transform hover:scale-110 transition duration-300" onerror="this.style.display='none'">
-                             </div>
-                             <div class="relative group">
-                                <div class="absolute -inset-1 bg-gradient-to-r from-blue-400 to-teal-400 rounded-full blur opacity-25 group-hover:opacity-50 transition"></div>
-                                <img src="catita2.png" class="w-20 h-20 object-contain relative z-10 drop-shadow-lg transform hover:scale-110 transition duration-300" onerror="this.style.display='none'">
-                             </div>
                         </div>
                     </div>
                 </div>
