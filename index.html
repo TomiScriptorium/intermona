@@ -562,8 +562,9 @@
                 const [y, m, d] = nextEvent.date.split('-').map(Number);
                 const isTodayEvent = nextEvent.date === dateKey;
                 const eventDateStr = new Date(y, m - 1, d).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' });
+                // AGREGADO: shrink-0 para evitar aplastamiento
                 reminderHTML = `
-                    <div class="order-3 bg-gradient-to-r from-indigo-500 to-blue-500 text-white p-4 rounded-2xl shadow-lg shadow-indigo-200 flex items-center gap-4 relative overflow-hidden">
+                    <div class="order-3 bg-gradient-to-r from-indigo-500 to-blue-500 text-white p-4 rounded-2xl shadow-lg shadow-indigo-200 flex items-center gap-4 relative overflow-hidden shrink-0">
                         <div class="bg-white/20 p-3 rounded-xl backdrop-blur-sm"><i class="fa-solid fa-bell text-xl"></i></div>
                         <div class="flex-1 z-10">
                             <p class="text-[10px] uppercase tracking-wider opacity-80 font-bold">Recordatorio</p>
@@ -588,7 +589,7 @@
                     shiftCardClass = "bg-red-50 border-red-100 text-red-600"; 
                     shiftText = "PASO"; 
                     shiftSubText = "Visita de Sala"; 
-                    shiftIcon = "fa-user-doctor"; // Icono actualizado para "Paso"
+                    shiftIcon = "fa-user-doctor";
                 }
                 else if (shift.type === 'dia') { shiftCardClass = "bg-blue-50 border-blue-100 text-blue-600"; shiftText = "TURNO DÍA"; shiftSubText = "Jornada Diurna"; shiftIcon = "fa-sun"; }
                 else if (shift.type === 'noche') { shiftCardClass = "bg-indigo-50 border-indigo-100 text-indigo-600"; shiftText = "TURNO NOCHE"; shiftSubText = "Jornada Nocturna"; shiftIcon = "fa-moon"; }
@@ -596,7 +597,7 @@
                     shiftCardClass = "bg-orange-50 border-orange-100 text-orange-600"; 
                     shiftText = "DÍA DE ESTUDIO"; 
                     shiftSubText = "Tiempo de estudio"; 
-                    shiftIcon = "fa-book-open"; // Icono actualizado para "Estudio"
+                    shiftIcon = "fa-book-open";
                 }
                 else if (shift.type === 'libre') { shiftCardClass = "bg-emerald-50 border-emerald-100 text-emerald-600"; shiftText = "DÍA LIBRE"; shiftSubText = "Recarga energías"; shiftIcon = "fa-mug-hot"; }
                 if (isNextShift && shift.type !== 'libre') shiftSubText = `Próximo: ${nextDateStr}`;
@@ -643,16 +644,12 @@
                     </div>`;
                 }).join('');
 
-            // LAYOUT INTERCALADO MÓVIL / COLUMNAS ESCRITORIO
-            // Usamos 'contents' en móvil para que los widgets sean hijos directos del grid principal y podamos usar 'order-x'.
-            // En escritorio (lg:), 'contents' se convierte en 'flex-col' para agrupar los widgets a la derecha.
-            
+            // LAYOUT
+            // AGREGADO: shrink-0 en todos los divs de widgets para que no se compriman
             return `
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:h-full min-h-full pb-8">
                     
                     <!-- PACIENTES (Fichas) -->
-                    <!-- Móvil: Orden 4. Altura automática (h-auto). Sin scroll interno. -->
-                    <!-- Escritorio: Orden 1. Altura fija (h-full). Con scroll interno. -->
                     <div class="order-4 lg:order-1 lg:col-span-1 lg:min-w-[350px] flex flex-col lg:h-full h-auto">
                         <div class="flex justify-between items-center mb-4 sticky top-0 bg-[#f8fafc] z-10 py-2">
                             <h2 class="text-2xl font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-clipboard-user text-blue-500"></i> Fichas</h2>
@@ -664,12 +661,10 @@
                     </div>
 
                     <!-- WRAPPER WIDGETS -->
-                    <!-- Móvil: display: contents -->
-                    <!-- Escritorio: Columna Derecha agrupada con scroll independiente y PADDING EXTRA (lg:p-6) para evitar cortes -->
                     <div class="contents lg:flex lg:flex-col lg:gap-6 lg:order-2 lg:col-span-2 lg:overflow-y-auto lg:p-6 lg:h-full">
                         
                         <!-- 1. Perfil (Orden 1) -->
-                        <div class="order-1 flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                        <div class="order-1 flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 shrink-0">
                             <div class="relative w-16 h-16 shrink-0 group cursor-pointer">
                                 <div class="absolute inset-0 bg-pink-100 rounded-full animate-pulse"></div>
                                 <label for="profile-upload" class="cursor-pointer">
@@ -687,7 +682,7 @@
                         </div>
 
                         <!-- 2. Turno (Orden 2) -->
-                        <div onclick="renderView('turnario')" class="order-2 cursor-pointer relative overflow-hidden rounded-2xl border-2 ${shiftCardClass.replace('bg-', 'border-').replace('text-', 'border-')} p-0 transition-transform active:scale-95 shadow-sm">
+                        <div onclick="renderView('turnario')" class="order-2 cursor-pointer relative overflow-hidden rounded-2xl border-2 ${shiftCardClass.replace('bg-', 'border-').replace('text-', 'border-')} p-0 transition-transform active:scale-95 shadow-sm shrink-0">
                             <div class="${shiftCardClass} p-5 relative z-10">
                                 <div class="flex justify-between items-start">
                                     <div>
@@ -704,10 +699,8 @@
                         <!-- 3. Recordatorio (Orden 3) -->
                         ${reminderHTML}
 
-                        <!-- AQUÍ IRÍA EL BLOQUE DE PACIENTES EN MÓVIL (Orden 4) -->
-
                         <!-- 5. Botones Rápidos (Orden 5) -->
-                        <div class="order-5 grid grid-cols-2 gap-3">
+                        <div class="order-5 grid grid-cols-2 gap-3 shrink-0">
                             <div onclick="renderView('todo')" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center gap-2 hover:border-pink-200 transition group cursor-pointer">
                                 <div class="w-10 h-10 rounded-full bg-pink-50 text-pink-500 flex items-center justify-center group-hover:scale-110 transition"><i class="fa-solid fa-clipboard-list text-lg"></i></div>
                                 <span class="text-xs font-bold text-slate-600">Pendientes (${pendingTodos.length})</span>
@@ -719,7 +712,7 @@
                         </div>
 
                         <!-- 6. Staff (Orden 6) -->
-                        <div class="order-6 pt-4 border-t border-slate-200/60 pb-8">
+                        <div class="order-6 pt-4 border-t border-slate-200/60 pb-8 shrink-0">
                              <p class="text-[10px] text-center text-slate-400 uppercase tracking-widest font-bold mb-4">Equipo Médico de Guardia</p>
                             <div class="flex justify-center gap-6">
                                  <div class="relative group"><div class="absolute -inset-1 bg-gradient-to-r from-pink-400 to-purple-400 rounded-full blur opacity-25 group-hover:opacity-50 transition"></div><img src="catita.png" class="w-20 h-20 object-contain relative z-10 drop-shadow-lg transform hover:scale-110 transition duration-300" onerror="this.style.display='none'"></div>
