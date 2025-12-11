@@ -178,10 +178,6 @@
         .toggle-checkbox:checked + .toggle-label {
             background-color: #ec4899;
         }
-        
-        input[type="range"] {
-            accent-color: #ec4899;
-        }
     </style>
 </head>
 <body class="text-slate-600 h-screen flex flex-col overflow-hidden">
@@ -280,12 +276,20 @@
                 
                 <div id="notification-options" class="opacity-50 pointer-events-none transition-opacity">
                     <label class="block text-sm font-bold text-slate-600 mb-2">Anticipación del aviso:</label>
-                    <div class="flex items-center gap-3">
-                        <i class="fa-regular fa-clock text-slate-400"></i>
-                        <input type="range" id="notification-time" min="5" max="120" step="5" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer" oninput="updateNotificationTimeLabel(this.value)">
-                        <span id="notification-time-label" class="text-sm font-bold text-pink-500 w-16 text-right">30 min</span>
+                    <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <input type="number" id="notification-value" min="1" class="w-16 bg-transparent text-center font-bold text-xl text-slate-700 outline-none border-b-2 border-slate-200 focus:border-pink-400 transition" value="30">
+                        <select id="notification-unit" class="bg-transparent font-bold text-slate-500 outline-none flex-1">
+                            <option value="minutes">Minutos antes</option>
+                            <option value="days">Días antes</option>
+                        </select>
                     </div>
-                    <p class="text-xs text-slate-400 mt-2 italic"><i class="fa-solid fa-circle-info mr-1"></i> Requiere tener la app abierta en segundo plano.</p>
+                    
+                    <div class="bg-blue-50 p-3 rounded-lg mt-3 border border-blue-100">
+                        <p class="text-xs text-blue-600 font-medium flex gap-2">
+                            <i class="fa-solid fa-circle-info mt-0.5"></i>
+                            <span>Para ver en pantalla bloqueada: Revisa Ajustes de tu móvil > Notificaciones y activa "Pantalla Bloqueada".</span>
+                        </p>
+                    </div>
                 </div>
             </div>
 
@@ -417,7 +421,8 @@
             // Configuración de notificaciones por defecto
             settings: {
                 notificationsEnabled: false,
-                notificationAdvance: 30, // minutos
+                notificationAdvance: 30, // valor
+                notificationUnit: 'minutes', // 'minutes' o 'days'
                 lastNotifiedEvent: null
             }
         };
@@ -510,8 +515,15 @@
                     if (!saved.folders) saved.folders = [{id: 'general', name: 'General'}];
                     if (!saved.patients) saved.patients = []; 
                     if (!saved.userName) saved.userName = 'Dra.';
-                    // Asegurar que settings exista si cargamos datos antiguos
-                    if (!saved.settings) saved.settings = { notificationsEnabled: false, notificationAdvance: 30, lastNotifiedEvent: null };
+                    
+                    // Asegurar que settings exista y tenga los campos nuevos
+                    if (!saved.settings) {
+                        saved.settings = { notificationsEnabled: false, notificationAdvance: 30, notificationUnit: 'minutes', lastNotifiedEvent: null };
+                    } else if (!saved.settings.notificationUnit) {
+                        // Migración para datos antiguos que solo tenían minutos
+                        saved.settings.notificationUnit = 'minutes';
+                    }
+
                     state = { ...state, ...saved, currentDate: new Date() }; 
                 } else {
                     state.folders = [{id: 'general', name: 'General'}];
@@ -558,52 +570,87 @@
             if (Notification.permission !== "granted") return;
 
             const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const dateKey = `${year}-${month}-${day}`;
+            const advanceVal = parseInt(state.settings.notificationAdvance) || 30;
+            const unit = state.settings.notificationUnit || 'minutes';
+
+            // Calcular el momento futuro que queremos comprobar
+            let targetFutureTime = new Date(now.getTime());
             
-            const todaysShift = state.shifts[dateKey];
-            
-            if (todaysShift && todaysShift.eventTime && todaysShift.note) {
-                const [hours, minutes] = todaysShift.eventTime.split(':').map(Number);
-                const eventDate = new Date(year, now.getMonth(), now.getDate(), hours, minutes);
+            if (unit === 'minutes') {
+                targetFutureTime.setMinutes(now.getMinutes() + advanceVal);
+            } else { // 'days'
+                targetFutureTime.setDate(now.getDate() + advanceVal);
+            }
+
+            // Obtener la clave de fecha de ese momento futuro (YYYY-MM-DD)
+            const year = targetFutureTime.getFullYear();
+            const month = String(targetFutureTime.getMonth() + 1).padStart(2, '0');
+            const day = String(targetFutureTime.getDate()).padStart(2, '0');
+            const futureDateKey = `${year}-${month}-${day}`;
+
+            const futureShift = state.shifts[futureDateKey];
+
+            // Si hay un evento en esa fecha futura
+            if (futureShift && futureShift.eventTime && futureShift.note) {
+                const [eventHours, eventMinutes] = futureShift.eventTime.split(':').map(Number);
                 
-                // Calcular diferencia en minutos
-                const diffMs = eventDate - now;
-                const diffMins = Math.floor(diffMs / 60000);
-                const advance = parseInt(state.settings.notificationAdvance) || 30;
+                // Verificar si la hora del evento coincide con la hora proyectada
+                // Usamos una tolerancia de +/- 1 minuto para asegurar el disparo
+                const checkHours = targetFutureTime.getHours();
+                const checkMinutes = targetFutureTime.getMinutes();
 
-                // Crear ID único para este evento hoy para no repetir notificación
-                const eventUniqueId = `${dateKey}-${todaysShift.eventTime}`;
+                if (checkHours === eventHours && checkMinutes === eventMinutes) {
+                    
+                    // Crear ID único para evitar repeticiones
+                    const eventUniqueId = `${futureDateKey}-${futureShift.eventTime}-${advanceVal}-${unit}`;
 
-                // Si estamos dentro del rango de aviso (ej: entre 29 y 31 min antes si el aviso es 30)
-                // y no hemos notificado este evento ya
-                if (diffMins <= advance && diffMins > 0 && state.settings.lastNotifiedEvent !== eventUniqueId) {
-                    sendNotification(`Recordatorio: ${todaysShift.note}`, `Evento en ${diffMins} minutos (${todaysShift.eventTime})`);
-                    state.settings.lastNotifiedEvent = eventUniqueId;
-                    saveData();
+                    if (state.settings.lastNotifiedEvent !== eventUniqueId) {
+                        
+                        let timeMsg = "";
+                        if (unit === 'minutes') {
+                            timeMsg = `En ${advanceVal} minutos`;
+                        } else {
+                            const dayLabel = advanceVal === 1 ? 'mañana' : `en ${advanceVal} días`;
+                            timeMsg = `${dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1)} a las ${futureShift.eventTime}`;
+                        }
+
+                        sendNotification(
+                            `Recordatorio: ${futureShift.note}`, 
+                            `${timeMsg}. Toca para ver detalle.`,
+                            'shift-reminder' 
+                        );
+                        
+                        state.settings.lastNotifiedEvent = eventUniqueId;
+                        saveData();
+                    }
                 }
             }
         }
 
-        function sendNotification(title, body) {
+        function sendNotification(title, body, tag = 'default') {
+            const options = {
+                body: body,
+                icon: 'iconointermona.png',
+                vibrate: [200, 100, 200, 100, 200, 500, 200], // Patrón de vibración más largo e intenso
+                tag: tag, // Agrupa notificaciones del mismo tipo
+                renotify: true, // Vuelve a vibrar/sonar si llega una nueva con el mismo tag
+                requireInteraction: true, // CRÍTICO: Mantiene la notificación hasta que el usuario la cierra (mejora visibilidad en bloqueo)
+                badge: 'iconointermona.png'
+            };
+
             try {
                 // Intentar usar Service Worker si está disponible (mejor para móviles)
                 if (navigator.serviceWorker && navigator.serviceWorker.ready) {
                      navigator.serviceWorker.ready.then(registration => {
-                        registration.showNotification(title, {
-                            body: body,
-                            icon: 'iconointermona.png',
-                            vibrate: [200, 100, 200]
-                        });
+                        registration.showNotification(title, options);
                     });
                 } else {
                     // Fallback a notificación estándar
-                    new Notification(title, {
-                        body: body,
-                        icon: 'iconointermona.png'
-                    });
+                    const notif = new Notification(title, options);
+                    notif.onclick = function() {
+                        window.focus();
+                        this.close();
+                    };
                 }
             } catch (e) {
                 console.error("Error enviando notificación:", e);
@@ -614,13 +661,14 @@
 
         function openSettingsModal() {
             const toggle = document.getElementById('notification-toggle');
-            const timeInput = document.getElementById('notification-time');
+            const valInput = document.getElementById('notification-value');
+            const unitSelect = document.getElementById('notification-unit');
             const optionsDiv = document.getElementById('notification-options');
             
             // Cargar valores actuales
             toggle.checked = state.settings.notificationsEnabled || false;
-            timeInput.value = state.settings.notificationAdvance || 30;
-            updateNotificationTimeLabel(timeInput.value);
+            valInput.value = state.settings.notificationAdvance || 30;
+            unitSelect.value = state.settings.notificationUnit || 'minutes';
             
             // Actualizar estado visual
             if (toggle.checked) {
@@ -661,18 +709,22 @@
             }
         }
 
-        function updateNotificationTimeLabel(val) {
-            document.getElementById('notification-time-label').innerText = `${val} min`;
-        }
-
         function saveSettings() {
             const toggle = document.getElementById('notification-toggle');
-            const timeInput = document.getElementById('notification-time');
+            const valInput = document.getElementById('notification-value');
+            const unitSelect = document.getElementById('notification-unit');
+
+            const val = parseInt(valInput.value);
+            if (val < 1) {
+                showToast("Valor inválido", "fa-exclamation");
+                return;
+            }
 
             state.settings = {
                 ...state.settings,
                 notificationsEnabled: toggle.checked,
-                notificationAdvance: parseInt(timeInput.value)
+                notificationAdvance: val,
+                notificationUnit: unitSelect.value
             };
 
             saveData();
