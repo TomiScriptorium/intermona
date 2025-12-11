@@ -42,6 +42,46 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Patrick+Hand&display=swap" rel="stylesheet">
 
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Exponer funciones globalmente para usarlas en el HTML tradicional
+        window.initFirebaseServices = async function() {
+            try {
+                const firebaseConfig = JSON.parse(window.__firebase_config || '{}');
+                // Fallback básico por si no hay config en el entorno de desarrollo local
+                if (!firebaseConfig.apiKey) {
+                    console.warn("Firebase config not found provided globally.");
+                    return null;
+                }
+
+                const app = initializeApp(firebaseConfig);
+                const auth = getAuth(app);
+                const db = getFirestore(app);
+                const appId = window.__app_id || 'default-app';
+
+                // Autenticación
+                if (window.__initial_auth_token) {
+                    await signInWithCustomToken(auth, window.__initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                return { db, appId, auth };
+            } catch (error) {
+                console.error("Error inicializando Firebase:", error);
+                return null;
+            }
+        };
+
+        window.firebaseOperations = {
+            addDoc, collection, getDoc, doc
+        };
+    </script>
+
     <style>
         :root {
             --medical-pink: #ec4899;
@@ -156,7 +196,6 @@
     </header>
 
     <!-- Main Container -->
-    <!-- AUMENTADO PADDING BOTTOM AQUÍ (de pb-28 a pb-40) -->
     <main id="app-container" class="flex-1 overflow-y-auto p-4 pb-40 relative scroll-smooth hide-scrollbar"></main>
 
     <!-- Nav Bar -->
@@ -201,7 +240,57 @@
     <div id="folder-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-xl w-full max-w-xs p-6"><h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-folder-plus text-pink-500"></i> Nueva Categoría</h3><input type="text" id="new-folder-name" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl mb-4 focus:ring-2 focus:ring-pink-500 outline-none text-lg font-semibold" placeholder="Ej: Cardiología, Pediatría..."><div class="flex justify-end gap-3"><button onclick="closeFolderModal()" class="px-4 py-2 text-slate-400 hover:text-slate-600 font-bold text-lg">Cancelar</button><button onclick="createFolder()" class="px-4 py-2 bg-pink-500 text-white rounded-xl hover:bg-pink-600 font-bold text-lg shadow-lg shadow-pink-200">Crear</button></div></div></div>
     <div id="name-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-xl w-full max-w-xs p-6"><h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-id-card text-pink-500"></i> Editar Nombre</h3><p class="text-sm text-slate-400 mb-3">¿Cómo quieres que te llame la app?</p><input type="text" id="new-user-name" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl mb-4 focus:ring-2 focus:ring-pink-500 outline-none text-lg font-semibold text-slate-700" placeholder="Ej: Dra. García"><div class="flex justify-end gap-3"><button onclick="closeNameModal()" class="px-4 py-2 text-slate-400 hover:text-slate-600 font-bold text-lg">Cancelar</button><button onclick="saveName()" class="px-4 py-2 bg-pink-500 text-white rounded-xl hover:bg-pink-600 font-bold text-lg shadow-lg shadow-pink-200">Guardar</button></div></div></div>
     <div id="patient-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 border-t-4 border-blue-400"><h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-user-injured text-blue-500"></i> Ingresar Paciente</h3><div class="space-y-3"><input type="text" id="patient-name" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none text-lg font-semibold" placeholder="Nombre del Paciente"><div class="flex gap-3"><input type="text" id="patient-room" class="w-1/3 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none text-lg font-semibold" placeholder="Cama/Hab"><input type="text" id="patient-dx" class="w-2/3 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none text-lg font-semibold" placeholder="Diagnóstico (Breve)"></div></div><div class="flex justify-end gap-3 mt-6"><button onclick="closePatientModal()" class="px-4 py-2 text-slate-400 hover:text-slate-600 font-bold text-lg">Cancelar</button><button onclick="createPatient()" class="px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 font-bold text-lg shadow-lg shadow-blue-200">Ingresar</button></div></div></div>
-    <div id="backup-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6"><h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-database text-pink-500"></i> Gestión de Datos</h3><p class="text-sm text-slate-500 mb-6">Guarda una copia comprimida de tus registros (incluyendo imágenes) o restaura una anterior.</p><div class="grid gap-3"><button onclick="downloadBackupFile()" class="p-4 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition flex items-center gap-3 group"><div class="w-10 h-10 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center group-hover:scale-110 transition"><i class="fa-solid fa-file-zipper"></i></div><div class="text-left"><h4 class="font-bold text-slate-700 text-lg">Descargar Backup ZIP</h4><p class="text-xs text-slate-400">Archivo comprimido completo</p></div></button><label class="p-4 rounded-xl border border-slate-200 hover:border-green-400 hover:bg-green-50 transition flex items-center gap-3 group cursor-pointer relative"><div class="w-10 h-10 rounded-full bg-green-100 text-green-500 flex items-center justify-center group-hover:scale-110 transition"><i class="fa-solid fa-upload"></i></div><div class="text-left"><h4 class="font-bold text-slate-700 text-lg">Restaurar Backup ZIP</h4><p class="text-xs text-slate-400">Cargar archivo .zip</p></div><input type="file" id="backup-file-input" accept=".zip" class="hidden" onchange="importBackupFromFile(this)"></label><button onclick="exportDataToClipboard()" class="p-4 rounded-xl border border-slate-200 hover:border-purple-400 hover:bg-purple-50 transition flex items-center gap-3 group"><div class="w-10 h-10 rounded-full bg-purple-100 text-purple-500 flex items-center justify-center group-hover:scale-110 transition"><i class="fa-regular fa-copy"></i></div><div class="text-left"><h4 class="font-bold text-slate-700 text-lg">Copiar JSON (Solo Texto)</h4><p class="text-xs text-slate-400">Portapapeles (sin imágenes pesadas)</p></div></button></div><div class="flex justify-end gap-3 mt-6"><button onclick="closeBackupModal()" class="px-4 py-2 text-slate-400 hover:text-slate-600 font-bold text-lg">Cerrar</button></div></div></div>
+    
+    <!-- Backup Modal Actualizado -->
+    <div id="backup-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-database text-pink-500"></i> Gestión de Datos</h3>
+            <p class="text-sm text-slate-500 mb-6">Guarda tus datos para usarlos en otro dispositivo.</p>
+            
+            <div class="grid gap-3">
+                <!-- Opción ZIP -->
+                <button onclick="downloadBackupFile()" class="p-4 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition flex items-center gap-3 group">
+                    <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center group-hover:scale-110 transition"><i class="fa-solid fa-file-zipper"></i></div>
+                    <div class="text-left">
+                        <h4 class="font-bold text-slate-700 text-lg">Descargar Backup ZIP</h4>
+                        <p class="text-xs text-slate-400">Todo (Fotos incluidas)</p>
+                    </div>
+                </button>
+                
+                <label class="p-4 rounded-xl border border-slate-200 hover:border-green-400 hover:bg-green-50 transition flex items-center gap-3 group cursor-pointer relative">
+                    <div class="w-10 h-10 rounded-full bg-green-100 text-green-500 flex items-center justify-center group-hover:scale-110 transition"><i class="fa-solid fa-upload"></i></div>
+                    <div class="text-left">
+                        <h4 class="font-bold text-slate-700 text-lg">Restaurar ZIP</h4>
+                        <p class="text-xs text-slate-400">Cargar archivo .zip</p>
+                    </div>
+                    <input type="file" id="backup-file-input" accept=".zip" class="hidden" onchange="importBackupFromFile(this)">
+                </label>
+
+                <!-- Opción Enlace Nube -->
+                <button onclick="generateCloudLink()" class="p-4 rounded-xl border border-slate-200 hover:border-purple-400 hover:bg-purple-50 transition flex flex-col gap-3 group" id="btn-cloud-backup">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-purple-100 text-purple-500 flex items-center justify-center group-hover:scale-110 transition"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+                        <div class="text-left">
+                            <h4 class="font-bold text-slate-700 text-lg">Enlace Mágico (Nube)</h4>
+                            <p class="text-xs text-slate-400">Crear link para otro dispositivo</p>
+                        </div>
+                    </div>
+                    <!-- Área de resultado del link -->
+                    <div id="cloud-link-result" class="hidden w-full bg-slate-50 p-2 rounded-lg border border-purple-100 mt-2">
+                        <p class="text-xs text-slate-400 font-bold mb-1">Copia este enlace:</p>
+                        <div class="flex gap-2">
+                            <input type="text" id="generated-link-input" class="w-full text-xs p-1 bg-white border border-slate-200 rounded text-slate-600" readonly>
+                            <button onclick="copyGeneratedLink(event)" class="bg-purple-500 text-white px-2 rounded hover:bg-purple-600"><i class="fa-regular fa-copy"></i></button>
+                        </div>
+                    </div>
+                </button>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6">
+                <button onclick="closeBackupModal()" class="px-4 py-2 text-slate-400 hover:text-slate-600 font-bold text-lg">Cerrar</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Modal Lector de PDF -->
     <div id="pdf-reader-modal" class="hidden fixed inset-0 bg-slate-900 z-[90] flex flex-col animate-fade-in outline-none" tabindex="0">
@@ -260,6 +349,7 @@
         };
         let selectedDateKey = null; 
         let tempShiftType = null;
+        let firebaseApp = null; // Guardará la instancia de { db, appId, auth }
 
         // --- SISTEMA DE ALMACENAMIENTO LOCAL ---
         const idbKeyval = {
@@ -297,6 +387,21 @@
 
         async function init() {
             try {
+                // 1. Iniciar Firebase y esperar autenticación
+                if (window.initFirebaseServices) {
+                    firebaseApp = await window.initFirebaseServices();
+                }
+
+                // 2. Comprobar si hay un enlace de restauración en la URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const restoreId = urlParams.get('restore');
+
+                if (restoreId && firebaseApp) {
+                     await restoreFromCloudLink(restoreId);
+                     // Limpiar URL
+                     window.history.replaceState({}, document.title, window.location.pathname);
+                }
+
                 await loadData();
                 setupGlobalListeners(); // Activar listeners de gestos
                 state.view = null; 
@@ -347,6 +452,114 @@
             } catch (e) {
                 console.error("Error guardando en BD:", e);
                 showToast("Error al guardar", "fa-triangle-exclamation");
+            }
+        }
+
+        // --- FUNCIONES DE NUBE (FIREBASE) ---
+        
+        async function generateCloudLink() {
+            if (!firebaseApp) {
+                showToast("Servicio no disponible", "fa-cloud-slash");
+                return;
+            }
+
+            const { db, appId, auth } = firebaseApp;
+            if (!auth.currentUser) {
+                showToast("Autenticando...", "fa-spinner fa-spin");
+                // Pequeño delay por si la auth aún corre
+                await new Promise(r => setTimeout(r, 1000));
+                if (!auth.currentUser) return showToast("Error de conexión", "fa-plug");
+            }
+
+            const dataToUpload = { ...state };
+            delete dataToUpload.currentDate;
+            delete dataToUpload.editingNoteId;
+            
+            // Verificación de tamaño aproximada (1MB límite Firestore)
+            const jsonString = JSON.stringify(dataToUpload);
+            const sizeInBytes = new Blob([jsonString]).size;
+            
+            if (sizeInBytes > 950000) { // Margen de seguridad (950KB)
+                showToast("¡Datos muy pesados! Usa ZIP", "fa-weight-hanging");
+                alert("Tus datos pesan más de 1MB (probablemente por imágenes). La nube no puede procesarlos gratis.\n\nPor favor usa la opción 'Descargar Backup ZIP' para guardar todo.");
+                return;
+            }
+
+            const btn = document.getElementById('btn-cloud-backup');
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-2xl text-purple-500"></i><span class="text-sm font-bold text-slate-500">Subiendo a la nube...</span>`;
+            btn.disabled = true;
+
+            try {
+                // Colección pública para permitir compartir entre dispositivos sin login complejo
+                // Usamos una ruta específica
+                const backupsRef = window.firebaseOperations.collection(db, 'artifacts', appId, 'public', 'data', 'backups');
+                
+                const docRef = await window.firebaseOperations.addDoc(backupsRef, {
+                    data: jsonString,
+                    timestamp: Date.now(),
+                    version: "2.0"
+                });
+
+                // Generar Link
+                const baseUrl = window.location.href.split('?')[0];
+                const magicLink = `${baseUrl}?restore=${docRef.id}`;
+                
+                // Mostrar resultado
+                btn.innerHTML = originalContent; // Restaurar visual
+                btn.disabled = false;
+                
+                const resultDiv = document.getElementById('cloud-link-result');
+                const input = document.getElementById('generated-link-input');
+                input.value = magicLink;
+                resultDiv.classList.remove('hidden');
+                
+                showToast("¡Enlace Creado!", "fa-link");
+
+            } catch (error) {
+                console.error(error);
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
+                showToast("Error al subir", "fa-triangle-exclamation");
+            }
+        }
+
+        function copyGeneratedLink(e) {
+            e.stopPropagation();
+            const input = document.getElementById('generated-link-input');
+            input.select();
+            document.execCommand('copy');
+            showToast("Enlace copiado", "fa-clipboard-check");
+        }
+
+        async function restoreFromCloudLink(docId) {
+            if (!firebaseApp) return;
+            const { db, appId } = firebaseApp;
+
+            showToast("Buscando copia en la nube...", "fa-cloud-arrow-down");
+            
+            try {
+                // Referencia exacta al documento
+                const docRef = window.firebaseOperations.doc(db, 'artifacts', appId, 'public', 'data', 'backups', docId);
+                const docSnap = await window.firebaseOperations.getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const rawData = docSnap.data().data;
+                    const parsedData = JSON.parse(rawData);
+                    
+                    if (confirm("⚠️ RESTAURACIÓN DE NUBE DETECTADA ⚠️\n\n¿Quieres reemplazar los datos actuales con esta copia de seguridad?\n\nEsta acción borrará lo que tienes en pantalla ahora mismo.")) {
+                        state = { ...state, ...parsedData, currentDate: new Date() };
+                        await saveData();
+                        showToast("¡Datos Restaurados!", "fa-check-double");
+                    } else {
+                        showToast("Restauración cancelada", "fa-ban");
+                    }
+                } else {
+                    showToast("Enlace caducado o inválido", "fa-heart-crack");
+                }
+            } catch (error) {
+                console.error("Error restaurando:", error);
+                showToast("Error de conexión", "fa-wifi");
             }
         }
 
@@ -545,7 +758,11 @@
         function openNameModal() { document.getElementById('new-user-name').value = state.userName || ''; document.body.classList.add('modal-open'); document.getElementById('name-modal').classList.remove('hidden'); document.getElementById('new-user-name').focus(); }
         function closeNameModal() { document.body.classList.remove('modal-open'); document.getElementById('name-modal').classList.add('hidden'); }
         function saveName() { const name = document.getElementById('new-user-name').value.trim(); if (name) { state.userName = name; saveData(); renderView('dashboard'); closeNameModal(); showToast("Nombre actualizado", "fa-id-card"); } }
-        function openBackupModal() { document.getElementById('backup-modal').classList.remove('hidden'); }
+        function openBackupModal() { 
+            document.getElementById('backup-modal').classList.remove('hidden');
+            // Resetear UI de enlace al abrir
+            document.getElementById('cloud-link-result').classList.add('hidden');
+        }
         function closeBackupModal() { document.getElementById('backup-modal').classList.add('hidden'); document.getElementById('backup-file-input').value = ''; }
         async function downloadBackupFile() { try { showToast("Preparando ZIP...", "fa-spinner fa-spin"); const zip = new JSZip(); const dataStr = JSON.stringify(state, null, 2); zip.file("intermona_data.json", dataStr); const content = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 9 } }); const downloadAnchorNode = document.createElement('a'); const fileName = "intermona_backup_" + new Date().toISOString().slice(0,10) + ".zip"; downloadAnchorNode.href = URL.createObjectURL(content); downloadAnchorNode.setAttribute("download", fileName); document.body.appendChild(downloadAnchorNode); downloadAnchorNode.click(); document.body.removeChild(downloadAnchorNode); URL.revokeObjectURL(downloadAnchorNode.href); showToast("Backup ZIP Descargado", "fa-file-zipper"); } catch (err) { showToast("Error al comprimir", "fa-triangle-exclamation"); } }
         async function importBackupFromFile(input) { const file = input.files[0]; if (!file) return; try { showToast("Analizando ZIP...", "fa-spinner fa-spin"); const zip = await JSZip.loadAsync(file); const dataFile = zip.file("intermona_data.json"); if (!dataFile) throw new Error("El archivo ZIP no contiene datos válidos de Intermona."); const content = await dataFile.async("string"); const data = JSON.parse(content); if (data && (data.todos || data.notes || data.shifts)) { showConfirmModal("Restaurar desde ZIP", "Se reemplazará toda la información actual.", "Restaurar", function() { state = { ...state, ...data, currentDate: new Date() }; saveData(); closeConfirmModal(); closeBackupModal(); state.view = null; renderView('dashboard'); showToast("Datos restaurados", "fa-check-double"); }); } else { showToast("Datos corruptos", "fa-triangle-exclamation"); } } catch (err) { showToast("Error: Archivo inválido", "fa-bug"); } input.value = ''; }
@@ -787,6 +1004,39 @@
         function openFolderModal() { document.body.classList.add('modal-open'); document.getElementById('folder-modal').classList.remove('hidden'); document.getElementById('new-folder-name').focus(); }
         function closeFolderModal() { document.body.classList.remove('modal-open'); document.getElementById('folder-modal').classList.add('hidden'); document.getElementById('new-folder-name').value = ''; }
         function createFolder() { const name = document.getElementById('new-folder-name').value.trim(); if (!name) return; const id = 'f_' + Date.now(); state.folders.push({ id, name }); state.currentFolderId = id; saveData(); closeFolderModal(); changeFolder(id); showToast(`Categoría "${name}" creada`, "fa-folder-plus"); }
+        
+        // --- FUNCIÓN DE BORRAR CARPETAS ---
+        function confirmDeleteFolder(id, name) {
+            showConfirmModal(
+                "¿Borrar carpeta?", 
+                `Se eliminará "${name}". Las notas pasarán a "General".`, 
+                "Borrar", 
+                () => deleteFolder(id)
+            );
+        }
+
+        function deleteFolder(id) {
+            if (id === 'general') return;
+            
+            // 1. Mover notas a General
+            state.notes.forEach(n => {
+                if (n.folderId === id) n.folderId = 'general';
+            });
+            
+            // 2. Eliminar carpeta
+            state.folders = state.folders.filter(f => f.id !== id);
+            
+            // 3. Reset vista si estaba activa
+            if (state.currentFolderId === id) {
+                state.currentFolderId = 'all';
+            }
+            
+            saveData();
+            closeConfirmModal();
+            changeFolder(state.currentFolderId); // Re-renderiza todo notes view
+            showToast("Carpeta eliminada", "fa-trash");
+        }
+
         function processImage(file) { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.readAsDataURL(file); reader.onload = (event) => { const img = new Image(); img.src = event.target.result; img.onload = () => { const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); const MAX_WIDTH = 800; let width = img.width; let height = img.height; if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } canvas.width = width; canvas.height = height; ctx.drawImage(img, 0, 0, width, height); resolve(canvas.toDataURL('image/jpeg', 0.6)); }; img.onerror = reject; }; reader.onerror = reject; }); }
         
         // --- NUEVA FUNCIÓN PARA SUBIR MÚLTIPLES IMÁGENES ---
@@ -862,7 +1112,29 @@
         function closeModal() { document.body.classList.remove('modal-open'); document.getElementById('shift-modal').classList.add('hidden'); }
         function saveShift() { const note = document.getElementById('modal-note-input').value.trim(); const eventTime = document.getElementById('modal-event-time').value; if (!tempShiftType && !note && !eventTime) { delete state.shifts[selectedDateKey]; } else { state.shifts[selectedDateKey] = { type: tempShiftType, note: note, eventTime: eventTime }; } saveData(); closeModal(); if (state.view === 'turnario') { renderView('turnario'); } else if (state.view === 'dashboard') { renderView('dashboard'); } showToast("Ficha Actualizada", "fa-check"); }
         function getNotesHTML() { const foldersHTML = `<div class="flex overflow-x-auto gap-2 pb-2 mb-0 hide-scrollbar" id="folders-container">${generateFoldersHTML()}</div>`; return `<div class="h-full flex flex-col"><div class="flex justify-between items-end mb-4 shrink-0"><h2 class="text-3xl font-black text-slate-700">Recetario & Notas</h2><i class="fa-solid fa-feather text-pink-300 text-2xl"></i></div><div class="flex flex-col lg:flex-row gap-6 flex-1 lg:overflow-hidden"><div class="lg:w-1/3 lg:min-w-[320px] shrink-0"><div id="note-editor" class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 relative lg:h-auto transition-all"><div class="absolute top-0 left-4 w-full h-1 bg-gradient-to-r from-pink-300 via-pink-400 to-pink-300"></div><div class="flex justify-between items-center mb-3"><span id="editor-title" class="text-xs font-bold text-slate-400 uppercase tracking-widest">Nueva Entrada</span><button id="editor-cancel-btn" onclick="cancelEdit()" class="text-slate-400 hover:text-red-400 text-sm hidden"><i class="fa-solid fa-times"></i> Cancelar</button></div><textarea id="new-note-text" class="w-full p-2 border border-slate-100 rounded-xl focus:ring-2 focus:ring-pink-100 focus:border-pink-200 outline-none resize-none mb-3 font-handwriting text-2xl text-slate-600 bg-slate-50 leading-relaxed placeholder-slate-300 transition-all" rows="6" placeholder="Escribe aquí, doctora..."></textarea><div id="editor-images-grid" class="hidden grid grid-cols-3 gap-2 mb-3"></div><div class="flex justify-between items-center pt-3 border-t border-slate-100"><label class="cursor-pointer text-slate-500 hover:text-pink-600 transition flex items-center gap-2 text-sm font-bold bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl hover:bg-pink-50 hover:border-pink-200"><i class="fa-solid fa-camera"></i> Adjuntar<input type="file" id="new-note-image" accept="image/*" multiple class="hidden"></label><button id="editor-save-btn" onclick="saveNote()" class="bg-slate-800 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-slate-700 transform active:scale-95 transition-all shadow-lg shadow-slate-200"><i class="fa-solid fa-check mr-1"></i> Anotar</button></div></div><p class="hidden lg:block text-center text-xs text-slate-300 mt-4 italic"><i class="fa-solid fa-lightbulb text-yellow-300 mr-1"></i> Selecciona una nota de la derecha para editarla aquí.</p></div><div class="lg:w-2/3 flex flex-col lg:h-full min-h-0"><div class="mb-4 shrink-0 bg-[#f8fafc] sticky top-0 z-10 pb-2">${foldersHTML}</div><div class="flex-1 lg:overflow-y-auto pr-1 pb-40 lg:pb-40 hide-scrollbar"><div id="notes-list" class="grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-min">${generateNotesListHTML()}</div></div></div></div></div>`; }
-        function generateFoldersHTML() { return `<button onclick="changeFolder('all')" class="whitespace-nowrap px-4 py-1.5 rounded-lg text-sm font-bold transition-all border ${state.currentFolderId === 'all' ? 'bg-slate-700 text-white border-slate-700 shadow-md' : 'bg-white text-slate-500 border-slate-200 hover:border-pink-300'}" data-id="all">Todas</button>${(state.folders || []).map(f => `<button onclick="changeFolder('${f.id}')" class="whitespace-nowrap px-4 py-1.5 rounded-lg text-sm font-bold transition-all border ${state.currentFolderId === f.id ? 'bg-pink-500 text-white border-pink-500 shadow-md' : 'bg-white text-slate-500 border-slate-200 hover:border-pink-300'}" data-id="${f.id}">${f.name}</button>`).join('')}<button onclick="openFolderModal()" class="w-8 h-8 rounded-lg bg-pink-50 text-pink-500 hover:bg-pink-100 flex items-center justify-center border border-pink-100 transition"><i class="fa-solid fa-plus text-sm"></i></button>`; }
+        function generateFoldersHTML() {
+            const allBtn = `<button onclick="changeFolder('all')" class="whitespace-nowrap px-4 py-1.5 rounded-lg text-sm font-bold transition-all border ${state.currentFolderId === 'all' ? 'bg-slate-700 text-white border-slate-700 shadow-md' : 'bg-white text-slate-500 border-slate-200 hover:border-pink-300'}" data-id="all">Todas</button>`;
+            
+            const foldersBtns = (state.folders || []).map(f => {
+                const isActive = state.currentFolderId === f.id;
+                const baseClass = isActive ? 'bg-pink-500 text-white border-pink-500 shadow-md' : 'bg-white text-slate-500 border-slate-200 hover:border-pink-300';
+                
+                // Botón de eliminar solo si no es general
+                let deleteBtn = '';
+                if (f.id !== 'general') {
+                     deleteBtn = `<span onclick="event.stopPropagation(); confirmDeleteFolder('${f.id}', '${f.name}')" class="ml-2 w-5 h-5 flex items-center justify-center rounded-full hover:bg-white/20 transition cursor-pointer" title="Borrar carpeta"><i class="fa-solid fa-xmark text-xs"></i></span>`;
+                }
+                
+                return `<button onclick="changeFolder('${f.id}')" class="whitespace-nowrap px-3 pl-4 py-1.5 rounded-lg text-sm font-bold transition-all border flex items-center gap-1 ${baseClass}" data-id="${f.id}">
+                    ${f.name}
+                    ${deleteBtn}
+                </button>`;
+            }).join('');
+
+            const addBtn = `<button onclick="openFolderModal()" class="w-8 h-8 rounded-lg bg-pink-50 text-pink-500 hover:bg-pink-100 flex items-center justify-center border border-pink-100 transition shrink-0"><i class="fa-solid fa-plus text-sm"></i></button>`;
+
+            return allBtn + foldersBtns + addBtn;
+        }
         function generateNotesListHTML() { let filteredNotes = state.notes || []; if (state.currentFolderId !== 'all') { filteredNotes = filteredNotes.filter(n => n.folderId === state.currentFolderId); } if (filteredNotes.length === 0) return `<div class="text-center py-10 opacity-40"><i class="fa-solid fa-clipboard text-4xl mb-2 text-slate-300"></i><p class="text-sm font-bold text-slate-400">Sin notas registradas</p></div>`; return filteredNotes.map(n => createNoteHTML(n)).join(''); }
         function createNoteHTML(note) { 
             // Manejo de imágenes múltiples o individuales (compatibilidad)
