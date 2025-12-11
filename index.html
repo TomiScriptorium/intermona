@@ -169,6 +169,19 @@
             /* Eliminamos touch-action: none para permitir el scroll natural */
             transform-origin: 0 0;
         }
+
+        /* Toggle Switch para Ajustes */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #ec4899;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #ec4899;
+        }
+        
+        input[type="range"] {
+            accent-color: #ec4899;
+        }
     </style>
 </head>
 <body class="text-slate-600 h-screen flex flex-col overflow-hidden">
@@ -189,9 +202,17 @@
                     <p class="text-xs text-pink-100 uppercase tracking-widest font-bold">Sistema Médico Personal</p>
                 </div>
             </div>
-            <button onclick="openBackupModal()" class="text-sm bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-full backdrop-blur-md transition shadow-sm border border-white/20 active:scale-95 flex items-center gap-1.5">
-                <i class="fa-solid fa-database"></i> <span class="hidden sm:inline">Datos</span>
-            </button>
+            
+            <div class="flex gap-2">
+                <!-- Botón de Ajustes (Nuevo) -->
+                <button onclick="openSettingsModal()" class="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center backdrop-blur-md transition shadow-sm border border-white/20 active:scale-95">
+                    <i class="fa-solid fa-gear"></i>
+                </button>
+
+                <button onclick="openBackupModal()" class="text-sm bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-full backdrop-blur-md transition shadow-sm border border-white/20 active:scale-95 flex items-center gap-1.5">
+                    <i class="fa-solid fa-database"></i> <span class="hidden sm:inline">Datos</span>
+                </button>
+            </div>
         </div>
     </header>
 
@@ -241,6 +262,40 @@
     <div id="name-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-xl w-full max-w-xs p-6"><h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-id-card text-pink-500"></i> Editar Nombre</h3><p class="text-sm text-slate-400 mb-3">¿Cómo quieres que te llame la app?</p><input type="text" id="new-user-name" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl mb-4 focus:ring-2 focus:ring-pink-500 outline-none text-lg font-semibold text-slate-700" placeholder="Ej: Dra. García"><div class="flex justify-end gap-3"><button onclick="closeNameModal()" class="px-4 py-2 text-slate-400 hover:text-slate-600 font-bold text-lg">Cancelar</button><button onclick="saveName()" class="px-4 py-2 bg-pink-500 text-white rounded-xl hover:bg-pink-600 font-bold text-lg shadow-lg shadow-pink-200">Guardar</button></div></div></div>
     <div id="patient-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 border-t-4 border-blue-400"><h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-user-injured text-blue-500"></i> Ingresar Paciente</h3><div class="space-y-3"><input type="text" id="patient-name" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none text-lg font-semibold" placeholder="Nombre del Paciente"><div class="flex gap-3"><input type="text" id="patient-room" class="w-1/3 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none text-lg font-semibold" placeholder="Cama/Hab"><input type="text" id="patient-dx" class="w-2/3 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none text-lg font-semibold" placeholder="Diagnóstico (Breve)"></div></div><div class="flex justify-end gap-3 mt-6"><button onclick="closePatientModal()" class="px-4 py-2 text-slate-400 hover:text-slate-600 font-bold text-lg">Cancelar</button><button onclick="createPatient()" class="px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 font-bold text-lg shadow-lg shadow-blue-200">Ingresar</button></div></div></div>
     
+    <!-- Modal de Configuración (NUEVO) -->
+    <div id="settings-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[80] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-gear text-pink-500"></i> Configuración</h3>
+            
+            <!-- Notificaciones -->
+            <div class="mb-6">
+                <div class="flex justify-between items-center mb-2">
+                    <h4 class="font-bold text-slate-700">Notificaciones</h4>
+                    <div class="relative inline-block w-12 h-6 align-middle select-none transition duration-200 ease-in">
+                        <input type="checkbox" id="notification-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-300" onclick="toggleNotifications()">
+                        <label for="notification-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer"></label>
+                    </div>
+                </div>
+                <p class="text-xs text-slate-400 mb-4">Recibe avisos de tus asignaciones y recordatorios.</p>
+                
+                <div id="notification-options" class="opacity-50 pointer-events-none transition-opacity">
+                    <label class="block text-sm font-bold text-slate-600 mb-2">Anticipación del aviso:</label>
+                    <div class="flex items-center gap-3">
+                        <i class="fa-regular fa-clock text-slate-400"></i>
+                        <input type="range" id="notification-time" min="5" max="120" step="5" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer" oninput="updateNotificationTimeLabel(this.value)">
+                        <span id="notification-time-label" class="text-sm font-bold text-pink-500 w-16 text-right">30 min</span>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-2 italic"><i class="fa-solid fa-circle-info mr-1"></i> Requiere tener la app abierta en segundo plano.</p>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6 border-t border-slate-100 pt-4">
+                <button onclick="closeSettingsModal()" class="px-4 py-2 text-slate-400 hover:text-slate-600 font-bold text-lg">Cerrar</button>
+                <button onclick="saveSettings()" class="px-4 py-2 bg-pink-500 text-white rounded-xl hover:bg-pink-600 font-bold text-lg shadow-lg shadow-pink-200">Guardar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Backup Modal Actualizado -->
     <div id="backup-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
@@ -345,11 +400,31 @@
     <script>
         const APP_KEY = 'intermona_data_v2'; 
         let state = {
-            view: 'dashboard', todos: [], notes: [], folders: [], links: [], pdfs: [], shifts: {}, patients: [], userProfileImage: null, userName: 'Dra.', currentDate: new Date(), currentFolderId: 'all', editingNoteId: null, activeInfoTab: 'web'
+            view: 'dashboard', 
+            todos: [], 
+            notes: [], 
+            folders: [], 
+            links: [], 
+            pdfs: [], 
+            shifts: {}, 
+            patients: [], 
+            userProfileImage: null, 
+            userName: 'Dra.', 
+            currentDate: new Date(), 
+            currentFolderId: 'all', 
+            editingNoteId: null, 
+            activeInfoTab: 'web',
+            // Configuración de notificaciones por defecto
+            settings: {
+                notificationsEnabled: false,
+                notificationAdvance: 30, // minutos
+                lastNotifiedEvent: null
+            }
         };
         let selectedDateKey = null; 
         let tempShiftType = null;
         let firebaseApp = null; // Guardará la instancia de { db, appId, auth }
+        let notificationInterval = null;
 
         // --- SISTEMA DE ALMACENAMIENTO LOCAL ---
         const idbKeyval = {
@@ -404,6 +479,10 @@
 
                 await loadData();
                 setupGlobalListeners(); // Activar listeners de gestos
+                
+                // Iniciar servicio de notificaciones
+                startNotificationService();
+                
                 state.view = null; 
                 renderView('dashboard');
                 const oldData = localStorage.getItem(APP_KEY);
@@ -430,7 +509,9 @@
                     if (!saved.pdfs) saved.pdfs = []; 
                     if (!saved.folders) saved.folders = [{id: 'general', name: 'General'}];
                     if (!saved.patients) saved.patients = []; 
-                    if (!saved.userName) saved.userName = 'Dra.'; 
+                    if (!saved.userName) saved.userName = 'Dra.';
+                    // Asegurar que settings exista si cargamos datos antiguos
+                    if (!saved.settings) saved.settings = { notificationsEnabled: false, notificationAdvance: 30, lastNotifiedEvent: null };
                     state = { ...state, ...saved, currentDate: new Date() }; 
                 } else {
                     state.folders = [{id: 'general', name: 'General'}];
@@ -454,6 +535,152 @@
                 showToast("Error al guardar", "fa-triangle-exclamation");
             }
         }
+
+        // --- SISTEMA DE NOTIFICACIONES ---
+
+        function startNotificationService() {
+            if (notificationInterval) clearInterval(notificationInterval);
+            
+            // Revisar cada minuto
+            notificationInterval = setInterval(() => {
+                if (state.settings && state.settings.notificationsEnabled) {
+                    checkUpcomingEvents();
+                }
+            }, 60000); 
+
+            // Revisar inmediatamente al inicio también
+            if (state.settings && state.settings.notificationsEnabled) {
+                checkUpcomingEvents();
+            }
+        }
+
+        function checkUpcomingEvents() {
+            if (Notification.permission !== "granted") return;
+
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const dateKey = `${year}-${month}-${day}`;
+            
+            const todaysShift = state.shifts[dateKey];
+            
+            if (todaysShift && todaysShift.eventTime && todaysShift.note) {
+                const [hours, minutes] = todaysShift.eventTime.split(':').map(Number);
+                const eventDate = new Date(year, now.getMonth(), now.getDate(), hours, minutes);
+                
+                // Calcular diferencia en minutos
+                const diffMs = eventDate - now;
+                const diffMins = Math.floor(diffMs / 60000);
+                const advance = parseInt(state.settings.notificationAdvance) || 30;
+
+                // Crear ID único para este evento hoy para no repetir notificación
+                const eventUniqueId = `${dateKey}-${todaysShift.eventTime}`;
+
+                // Si estamos dentro del rango de aviso (ej: entre 29 y 31 min antes si el aviso es 30)
+                // y no hemos notificado este evento ya
+                if (diffMins <= advance && diffMins > 0 && state.settings.lastNotifiedEvent !== eventUniqueId) {
+                    sendNotification(`Recordatorio: ${todaysShift.note}`, `Evento en ${diffMins} minutos (${todaysShift.eventTime})`);
+                    state.settings.lastNotifiedEvent = eventUniqueId;
+                    saveData();
+                }
+            }
+        }
+
+        function sendNotification(title, body) {
+            try {
+                // Intentar usar Service Worker si está disponible (mejor para móviles)
+                if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+                     navigator.serviceWorker.ready.then(registration => {
+                        registration.showNotification(title, {
+                            body: body,
+                            icon: 'iconointermona.png',
+                            vibrate: [200, 100, 200]
+                        });
+                    });
+                } else {
+                    // Fallback a notificación estándar
+                    new Notification(title, {
+                        body: body,
+                        icon: 'iconointermona.png'
+                    });
+                }
+            } catch (e) {
+                console.error("Error enviando notificación:", e);
+            }
+        }
+
+        // --- UI DE AJUSTES ---
+
+        function openSettingsModal() {
+            const toggle = document.getElementById('notification-toggle');
+            const timeInput = document.getElementById('notification-time');
+            const optionsDiv = document.getElementById('notification-options');
+            
+            // Cargar valores actuales
+            toggle.checked = state.settings.notificationsEnabled || false;
+            timeInput.value = state.settings.notificationAdvance || 30;
+            updateNotificationTimeLabel(timeInput.value);
+            
+            // Actualizar estado visual
+            if (toggle.checked) {
+                optionsDiv.classList.remove('opacity-50', 'pointer-events-none');
+            } else {
+                optionsDiv.classList.add('opacity-50', 'pointer-events-none');
+            }
+
+            document.getElementById('settings-modal').classList.remove('hidden');
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settings-modal').classList.add('hidden');
+        }
+
+        async function toggleNotifications() {
+            const toggle = document.getElementById('notification-toggle');
+            const optionsDiv = document.getElementById('notification-options');
+
+            if (toggle.checked) {
+                // Pedir permiso
+                if (!("Notification" in window)) {
+                    alert("Tu navegador no soporta notificaciones.");
+                    toggle.checked = false;
+                    return;
+                }
+
+                const permission = await Notification.requestPermission();
+                if (permission === "granted") {
+                    optionsDiv.classList.remove('opacity-50', 'pointer-events-none');
+                    showToast("Permiso concedido", "fa-bell");
+                } else {
+                    toggle.checked = false;
+                    alert("Debes permitir las notificaciones en tu navegador/móvil para usar esta función.");
+                }
+            } else {
+                optionsDiv.classList.add('opacity-50', 'pointer-events-none');
+            }
+        }
+
+        function updateNotificationTimeLabel(val) {
+            document.getElementById('notification-time-label').innerText = `${val} min`;
+        }
+
+        function saveSettings() {
+            const toggle = document.getElementById('notification-toggle');
+            const timeInput = document.getElementById('notification-time');
+
+            state.settings = {
+                ...state.settings,
+                notificationsEnabled: toggle.checked,
+                notificationAdvance: parseInt(timeInput.value)
+            };
+
+            saveData();
+            startNotificationService(); // Reiniciar servicio con nuevos ajustes
+            closeSettingsModal();
+            showToast("Configuración guardada", "fa-check");
+        }
+
 
         // --- FUNCIONES DE NUBE (FIREBASE) ---
         
